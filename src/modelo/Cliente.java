@@ -5,9 +5,12 @@ import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -41,7 +44,7 @@ class VentanaLogin extends JFrame implements ActionListener {
 		ipLabel.setBounds(10, 50, 50, 20);
 		add(ipLabel);
 
-		ip = new JTextField();
+		ip = new JTextField("localhost");
 		ip.setBounds(70, 50, 100, 20);
 		add(ip);
 
@@ -49,7 +52,7 @@ class VentanaLogin extends JFrame implements ActionListener {
 		puertoLabel.setBounds(10, 80, 50, 20);
 		add(puertoLabel);
 
-		puerto = new JTextField();
+		puerto = new JTextField("9014");
 		puerto.setBounds(70, 80, 100, 20);
 		add(puerto);
 
@@ -57,7 +60,7 @@ class VentanaLogin extends JFrame implements ActionListener {
 		userLabel.setBounds(10, 110, 50, 20);
 		add(userLabel);
 
-		user = new JTextField();
+		user = new JTextField("admin");
 		user.setBounds(70, 110, 100, 20);
 		add(user);
 
@@ -65,7 +68,7 @@ class VentanaLogin extends JFrame implements ActionListener {
 		passLabel.setBounds(10, 140, 50, 20);
 		add(passLabel);
 
-		password = new JTextField();
+		password = new JTextField("admin");
 		password.setBounds(70, 140, 100, 20);
 		add(password);
 
@@ -84,6 +87,7 @@ class VentanaLogin extends JFrame implements ActionListener {
 		add(respuesta);
 
 		setLayout(null); // para que los controles no esten uno encima del otro
+		setTitle("Cliente Login");
 		setSize(400, 400); // tamaño del layout
 		setLocationRelativeTo(null);
 		setVisible(true);
@@ -95,12 +99,12 @@ class VentanaLogin extends JFrame implements ActionListener {
 		if (e.getSource() == btnLogin) {
 			try {
 
-				int matrizSize = 0;
 				boolean esperando = true;
+				Coordenada entradaXY = new Coordenada();
 
 				Login login = new Login(ip.getText(), puerto.getText(), user.getText(), password.getText());
 
-				Socket cliente = new Socket("127.0.0.1", Integer.parseInt(puerto.getText()));
+				Socket cliente = new Socket(ip.getText(), Integer.parseInt(puerto.getText()));
 
 				// DataOutputStream flujo = new DataOutputStream(cliente.getOutputStream());
 
@@ -109,18 +113,18 @@ class VentanaLogin extends JFrame implements ActionListener {
 				out.writeObject(login);
 
 				while (esperando == true) {
-					DataInputStream entrada = new DataInputStream(cliente.getInputStream());
-					matrizSize = entrada.readInt();
-					respuesta.setText(Integer.toString(matrizSize));
-
-					if (matrizSize > 0) {
+					ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
+					entradaXY = (Coordenada) entrada.readObject();
+					
+					if (entradaXY != null) {
 						esperando = false;
 					}
+					
 				}
 
 				setVisible(false);
 
-				VentanaCliente ventanaCliente = new VentanaCliente(matrizSize);
+				VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, ip.getText(), puerto.getText());
 				ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 				cliente.close();
@@ -135,19 +139,103 @@ class VentanaLogin extends JFrame implements ActionListener {
 }
 
 class VentanaCliente extends JFrame implements Runnable {
+	
+	int cSize = 30;
+	int posx = 70;
+	int posy = 50;
+	
+	Coordenada posicionActual;
+	
+	Coordenada [] vecinos = new Coordenada[8];
 
-	public VentanaCliente(int size) {
-
+	public VentanaCliente(Coordenada entrada, String ip, String puerto) { // recibir posicion inicial y casillas aledañas en vez de size
+			
+		posicionActual = entrada;
+		
+		
+		try {
+			
+			JTextArea casillero;
+			
+			
+			//Socket cliente = new Socket(ip,Integer.parseInt(puerto));
+			
+			JLabel entradaLabel = new JLabel("Coordenadas de entrada: " + entrada.getX() + "; " + entrada.getY());
+			entradaLabel.setBounds(10, 10, 200, 20);
+			add(entradaLabel);
+			
+			casillero = new JTextArea("E");
+			casillero.setFont(new Font("Arial", Font.PLAIN, 25));
+			casillero.setEditable(false);
+			casillero.setBounds((entrada.getX()*cSize)+posx, (entrada.getY()*cSize)+posy, 30, 30);
+			add(casillero);
+			pintarCasillero(casillero);
+			
+			setLayout(null); 
+			setTitle("Laberinto");
+			setSize(500, 500); 
+			setLocationRelativeTo(null);
+			setVisible(true);
+			
+			
+		}catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+		
+	
+		
+		
 	}
-	public void dibujarLaberinto(int size) {
-
+	
+	public void pintarCasillero(JTextArea casillero) {
+		casillero.setBackground(Color.LIGHT_GRAY);
+	}
+	
+	
+	public void mostrarVecinos(String ip, String puerto) throws NumberFormatException, UnknownHostException, IOException  {
+		JTextArea casillero;
+		casillero = new JTextArea();
+		casillero.setFont(new Font("Arial", Font.PLAIN, 25));
+		casillero.setEditable(false);
+		casillero.setText(devolverLetra(ip, puerto, new Coordenada(posicionActual.getX()+1, posicionActual.getY())));
+		add(casillero);
+		
+	}
+	
+	public String devolverLetra(String ip, String puerto, Coordenada c) throws NumberFormatException, UnknownHostException, IOException {
+		boolean esperando = true;
+		String letra = "";
+		Socket cliente = new Socket(ip,Integer.parseInt(puerto));
+		
+		System.out.println("Cliente contacto en: " + ip + " sobre puerto: " + puerto);
+		
+		ObjectOutputStream pedido = new ObjectOutputStream(cliente.getOutputStream());
+		
+		System.out.println("Se pide letra de coordenada: " + c.getX() + "; " + c.getY());
+		pedido.writeObject(c);
+		
+		
+		while(esperando == true) {
+			System.out.println("Esperando letra...");
+			DataInputStream recibir = new DataInputStream(cliente.getInputStream());
+			letra = recibir.readUTF();
+			
+			if(!letra.equals("")) {
+				esperando = false;
+			}	
+		}
+		cliente.close();
+		return letra;
 	}
 
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-
+		
 	}
+	
+	
+
 
 }
 
