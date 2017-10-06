@@ -11,6 +11,8 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -52,7 +54,7 @@ class VentanaLogin extends JFrame implements ActionListener {
 		puertoLabel.setBounds(10, 80, 50, 20);
 		add(puertoLabel);
 
-		puerto = new JTextField("9014");
+		puerto = new JTextField("9020");
 		puerto.setBounds(70, 80, 100, 20);
 		add(puerto);
 
@@ -105,12 +107,12 @@ class VentanaLogin extends JFrame implements ActionListener {
 				Login login = new Login(ip.getText(), puerto.getText(), user.getText(), password.getText());
 
 				Socket cliente = new Socket(ip.getText(), Integer.parseInt(puerto.getText()));
-
-				// DataOutputStream flujo = new DataOutputStream(cliente.getOutputStream());
+				
 
 				ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
 
 				out.writeObject(login);
+				
 
 				while (esperando == true) {
 					ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
@@ -121,13 +123,15 @@ class VentanaLogin extends JFrame implements ActionListener {
 					}
 					
 				}
+				
+				
 
 				setVisible(false);
 
 				VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, ip.getText(), puerto.getText());
 				ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-				cliente.close();
+	
 
 			} catch (Exception ex) {
 				System.out.println("Error en cliente " + ex.getMessage());
@@ -138,7 +142,7 @@ class VentanaLogin extends JFrame implements ActionListener {
 
 }
 
-class VentanaCliente extends JFrame implements Runnable {
+class VentanaCliente extends JFrame{
 	
 	int cSize = 30;
 	int posx = 70;
@@ -147,16 +151,17 @@ class VentanaCliente extends JFrame implements Runnable {
 	Coordenada posicionActual;
 	
 	Coordenada [] vecinos = new Coordenada[8];
+	
+	JTextArea casillero;
+	JTextArea txtMensajes;
 
 	public VentanaCliente(Coordenada entrada, String ip, String puerto) { // recibir posicion inicial y casillas aledañas en vez de size
 			
 		posicionActual = entrada;
 		
 		
+		
 		try {
-			
-			JTextArea casillero;
-			
 			
 			//Socket cliente = new Socket(ip,Integer.parseInt(puerto));
 			
@@ -164,28 +169,71 @@ class VentanaCliente extends JFrame implements Runnable {
 			entradaLabel.setBounds(10, 10, 200, 20);
 			add(entradaLabel);
 			
+			txtMensajes = new JTextArea();
+			txtMensajes.setBounds(450, 20, 300, 300);
+			add(txtMensajes);
+			consola("Inicio de juego.");
+			
+			
 			casillero = new JTextArea("E");
 			casillero.setFont(new Font("Arial", Font.PLAIN, 25));
 			casillero.setEditable(false);
-			casillero.setBounds((entrada.getX()*cSize)+posx, (entrada.getY()*cSize)+posy, 30, 30);
+			
+			posicionar(casillero, entrada);
 			add(casillero);
+			consola("Jugador posicionado en coordenadas: " + entrada.getX() + "; " + entrada.getY());
+			
 			pintarCasillero(casillero);
+		
+			
 			
 			setLayout(null); 
 			setTitle("Laberinto");
-			setSize(500, 500); 
+			setSize(800, 500); 
 			setLocationRelativeTo(null);
 			setVisible(true);
 			
+
+			mostrarVecinos("localhost", "9020");
+			
+			
+			System.out.println(devolverLetra("localhost", "9020", new Coordenada(-1,-1)));
 			
 		}catch(Exception e) {
 			System.out.println(e.getMessage());
 		}
 		
-	
+		
+		
+		
 		
 		
 	}
+		
+			
+			/*
+			consola("Se pide letra de posicion actual");
+			System.out.println(devolverLetra("localhost", "9020", posicionActual));
+			System.out.println(devolverLetra("localhost", "9020", new Coordenada(0,0)));
+			System.out.println(devolverLetra("localhost", "9020", new Coordenada(2,0)));
+			System.out.println(devolverLetra("localhost", "9020", new Coordenada(0,8)));
+			System.out.println(devolverLetra("localhost", "9020", new Coordenada(8,5)));
+			System.out.println(devolverLetra("localhost", "9020", new Coordenada(-1,-1)));
+			*/
+			
+			
+	public void posicionar(JTextArea casillero, Coordenada c) {
+		casillero.setBounds((c.getX()*(cSize+5))+posx, (c.getY()*(cSize+5))+posy, cSize, cSize);
+		consola("Se muestra casillero: " + c.getX() + "; " + c.getY());
+	}
+	
+	public void consola(String mensaje) {
+		Calendar calendario = new GregorianCalendar();
+		txtMensajes.append(calendario.get(Calendar.HOUR) + ":" + calendario.get(Calendar.MINUTE) + ":" + calendario.get(Calendar.SECOND));
+		txtMensajes.append(": " + mensaje+"\n");
+	}
+	
+	
 	
 	public void pintarCasillero(JTextArea casillero) {
 		casillero.setBackground(Color.LIGHT_GRAY);
@@ -194,16 +242,20 @@ class VentanaCliente extends JFrame implements Runnable {
 	
 	public void mostrarVecinos(String ip, String puerto) throws NumberFormatException, UnknownHostException, IOException  {
 		JTextArea casillero;
+		String letra = "";
 		casillero = new JTextArea();
 		casillero.setFont(new Font("Arial", Font.PLAIN, 25));
 		casillero.setEditable(false);
-		casillero.setText(devolverLetra(ip, puerto, new Coordenada(posicionActual.getX()+1, posicionActual.getY())));
+		consola("Creando casillero derecho");
+		letra = devolverLetra(ip, puerto, new Coordenada(posicionActual.getX()+1, posicionActual.getY()));
+		consola("Recibimos la letra: " + letra);
+		casillero.setText(letra);
+		posicionar(casillero, new Coordenada(posicionActual.getX()+1, posicionActual.getY()));
 		add(casillero);
 		
 	}
 	
 	public String devolverLetra(String ip, String puerto, Coordenada c) throws NumberFormatException, UnknownHostException, IOException {
-		boolean esperando = true;
 		String letra = "";
 		Socket cliente = new Socket(ip,Integer.parseInt(puerto));
 		
@@ -211,29 +263,19 @@ class VentanaCliente extends JFrame implements Runnable {
 		
 		ObjectOutputStream pedido = new ObjectOutputStream(cliente.getOutputStream());
 		
-		System.out.println("Se pide letra de coordenada: " + c.getX() + "; " + c.getY());
+		consola("Se pide letra de coordenada: " + c.getX() + "; " + c.getY());
 		pedido.writeObject(c);
 		
-		
-		while(esperando == true) {
-			System.out.println("Esperando letra...");
-			DataInputStream recibir = new DataInputStream(cliente.getInputStream());
-			letra = recibir.readUTF();
+
+		consola("Esperando letra");
+		DataInputStream recibir = new DataInputStream(cliente.getInputStream());
+		letra = recibir.readUTF();
 			
-			if(!letra.equals("")) {
-				esperando = false;
-			}	
-		}
+
 		cliente.close();
 		return letra;
 	}
 
-	@Override
-	public void run() {
-		// TODO Auto-generated method stub
-		
-	}
-	
 	
 
 
