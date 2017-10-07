@@ -138,6 +138,7 @@ public class Servidor extends JFrame implements Runnable{
 							if (aux.getX() == -1 && aux.getY() == -1) {
 								cliente.close();
 								consola("Cerrando Servidor de juego por coordenadas -1;-1");
+								this.setVisible(false);
 								servidorJuego.close();
 								System.out.println("Servidor de juego cerrado por coordenadas -1;-1");
 							}
@@ -170,7 +171,7 @@ public class Servidor extends JFrame implements Runnable{
 					
 					
 				
-
+			
 		
 
 
@@ -310,13 +311,24 @@ public class Servidor extends JFrame implements Runnable{
 class Coordenada implements Serializable{
     private int x;
     private int y;
+    private boolean known;
 
     public Coordenada(int x, int y) {
         this.x = x;
         this.y = y;
     }
     
-    public Coordenada() {}
+    
+    
+    public Coordenada(int x, int y, boolean known) {
+		this.x = x;
+		this.y = y;
+		this.known = false;
+	}
+
+
+
+	public Coordenada() {}
     
     public int getX() {
         return x;
@@ -324,4 +336,42 @@ class Coordenada implements Serializable{
     public int getY() {
         return y;
     }
+
+	public void setX(int x) {
+		this.x = x;
+	}
+	
+	public void setY(int y) {
+		this.y = y;
+	}
+
+	public boolean isKnown() {
+		return known;
+	}
+	
+	public void setKnown(boolean known) {
+		this.known = known;
+	}
+
+
+
+	@Override
+	public String toString() {
+		return x + " ;" + y + ", known=" + known ;
+	}
+
+
+
+	public boolean equals(Coordenada c) {
+		boolean respuesta = false;
+		if (this.getX() == c.getX() && this.getY() == c.getY()) {
+			respuesta = true;
+		}else {
+			respuesta = false;
+		}
+		return respuesta;
+	}
+    
+    
+    
 }

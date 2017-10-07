@@ -8,7 +8,7 @@ public class TestCliente {
 		
 			Coordenada xy = new Coordenada(5,5);
 			
-			VentanaCliente ventanaCliente = new VentanaCliente(xy, "localhost", "9010");
+			VentanaCliente ventanaCliente = new VentanaCliente(xy, "localhost", "9020");
 			ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	
 
