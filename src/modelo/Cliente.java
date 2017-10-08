@@ -154,6 +154,8 @@ class VentanaLogin extends JFrame implements ActionListener {
 
 class VentanaCliente extends JFrame {
 	
+	int oro = 0;
+	
 	int cSize = 30;
 	int posx = 70;
 	int posy = 50;
@@ -161,11 +163,13 @@ class VentanaCliente extends JFrame {
 	Coordenada posicionActual;
 	
 	JTextArea [][] laberinto = new JTextArea[10][10];
+	Coordenada [][] mapa = new Coordenada[10][10];
 	
 	JTextArea casillero;
 	JTextArea txtMensajes;
+	JLabel oroLabel;
 	
-	
+	Configuracion config;
 	
 	public VentanaCliente(Coordenada entrada, String ip, String puerto) { // recibir posicion inicial y casillas aledañas en vez de size
 			
@@ -175,58 +179,38 @@ class VentanaCliente extends JFrame {
 		addKeyListener(listener);
 		setFocusable(true);
 	
+		config = new Configuracion(ip, puerto);
+		
+		JLabel entradaLabel = new JLabel("Coordenadas de entrada: " + entrada.getX() + "; " + entrada.getY());
+		entradaLabel.setBounds(10, 10, 200, 20);
+		add(entradaLabel);
+		
+		JLabel oroLabel = new JLabel("Oro: " + oro);
+		oroLabel.setBounds(300, 10, 200, 20);
+		oroLabel.setFont(new Font("Arial", Font.PLAIN, 25));
+		add(oroLabel);
+		
+		txtMensajes = new JTextArea();
+		txtMensajes.setBounds(450, 20, 300, 1000);
+		add(txtMensajes);
+		txtMensajes.setEditable(false);
+		consola("Inicio de juego.");
+		
+		dibujarLaberinto(10);
+		
+		setLayout(null); 
+		setTitle("Laberinto");
+		setSize(800, 500); 
+		setLocationRelativeTo(null);
+		setVisible(true);
 		
 		try {
 			
-			
-			JLabel entradaLabel = new JLabel("Coordenadas de entrada: " + entrada.getX() + "; " + entrada.getY());
-			entradaLabel.setBounds(10, 10, 200, 20);
-			add(entradaLabel);
-			
-			txtMensajes = new JTextArea();
-			txtMensajes.setBounds(450, 20, 300, 1000);
-			add(txtMensajes);
-			txtMensajes.setEditable(false);
-			consola("Inicio de juego.");
-			
-			dibujarLaberinto(10);
-			
-			/*
-			
-			casillero = new JTextArea("E");
-			casillero.setFont(new Font("Arial", Font.PLAIN, 25));
-			casillero.setEditable(false);
-			
-			posicionar(casillero, entrada);
-			add(casillero);
-			pintarCasillero(casillero);
-			consola("Jugador posicionado en coordenadas: " + entrada.getX() + "; " + entrada.getY());
-			
-			*/
-			
-			setLayout(null); 
-			setTitle("Laberinto");
-			setSize(800, 500); 
-			setLocationRelativeTo(null);
-			setVisible(true);
-			
-			mostrarVecinos("localhost", "9020");
+			mostrarVecinos();
 				
-				
-				
-				
-			
-			
-			
 		}catch(Exception e) {
 			System.out.println(e.getMessage());
 		}
-		
-		
-		
-		
-		
-		
 	}
 		
 	
@@ -246,15 +230,8 @@ class VentanaCliente extends JFrame {
 	}
 	
 	
-	
-	public void pintarCasillero(JTextArea casillero) {
-		casillero.setBackground(Color.LIGHT_GRAY);
-	}
-	
-	
-	public void mostrarVecinos(String ip, String puerto) throws NumberFormatException, UnknownHostException, IOException  {
+	public void mostrarVecinos() throws NumberFormatException, UnknownHostException, IOException  {
 
-		//borrarLaberinto(laberinto);
 		
 		ArrayList<Coordenada> coordenadas = new ArrayList<Coordenada>();
 		
@@ -285,7 +262,7 @@ class VentanaCliente extends JFrame {
 		coordenadas.add(abajo2);
 		
 		posicionActual.setKnown(true);
-		consola("Posicion Actual: " + posicionActual);
+		//consola("Posicion Actual: " + posicionActual);
 		
 		//consola("Prueba de coordenada2: " + abajo.getX() + "; " + abajo.getY());
 		
@@ -298,8 +275,7 @@ class VentanaCliente extends JFrame {
 			
 			if(c.getX() >= 0 && c.getX() <= 9 && c.getY() >= 0 && c.getY() <= 9) {
 					
-				
-						add(posicionar(format(new JTextArea(), devolverLetra("localhost", "9020", c), c), c));
+						add(posicionar(format(new JTextArea(), devolverLetra(config.getIp() , config.getPuerto(), c), c), c));
 					
 						
 				
@@ -355,6 +331,7 @@ class VentanaCliente extends JFrame {
 		DataInputStream recibir = new DataInputStream(cliente.getInputStream());
 		letra = recibir.readUTF();
 			
+		//mapa[c.getX()][c.getY()].setLetra(letra);
 
 		cliente.close();
 		return letra;
@@ -371,7 +348,6 @@ class VentanaCliente extends JFrame {
 			j.setBackground(Color.GREEN);
 		}
 		
-		
 		if(j.getText().equalsIgnoreCase("P")) {
 			j.setBackground(Color.DARK_GRAY);
 		}
@@ -384,8 +360,12 @@ class VentanaCliente extends JFrame {
 			j.setBackground(Color.MAGENTA);
 		}
 		
-		if(posicionActual.getX() == c.getX() && posicionActual.getY() == c.getY()) {
-			j.setBackground(Color.RED);
+		if(posicionActual.equals(c)) {
+			j.setBackground(Color.BLUE);
+		}
+		
+		if(posicionActual.equals(c)) {
+			j.setText("X");
 		}
 		
 		
@@ -431,7 +411,71 @@ public void dibujarLaberinto(int size) {
 		}
 	}
 
+public void oroGuardia() throws NumberFormatException, UnknownHostException, IOException {
+	if(devolverLetra(config.getIp(), config.getPuerto(), new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("O")) {
+		oro++;
+		JOptionPane.showMessageDialog(null, "Tienes " + oro + " de oro");
+		this.oroLabel.setText(Integer.toString(oro));
+		this.add(oroLabel);
+	}
+	if(devolverLetra(config.getIp(), config.getPuerto(), new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("G")) {
+		JOptionPane.showMessageDialog(null, "Guardia! Perdiste 1 oro. Ahora tienes: " + oro + "de oro");
+		oro--;
+		this.oroLabel.setText(Integer.toString(oro));
+		this.add(oroLabel);
+	}
+}
+
+
+public boolean limites(int direccion) throws NumberFormatException, UnknownHostException, IOException {
+	boolean resultado = true;
+	
+	if(direccion == 39) { // Derecha
+		if(posicionActual.getX() == 9) {
+			resultado = false;
+		}
+		
+		if(devolverLetra(config.getIp(), config.getPuerto(), new Coordenada(posicionActual.getX()+1, posicionActual.getY())).equalsIgnoreCase("P")) {
+			resultado = false;
+		}
+	}
+	
+	if(direccion == 38) { // Arriba
+		if(posicionActual.getY() == 0) {
+			resultado = false;
+		}
+		
+		if(devolverLetra(config.getIp(), config.getPuerto(), new Coordenada(posicionActual.getX(), posicionActual.getY()-1)).equalsIgnoreCase("P")) {
+			resultado = false;
+		}
+	}
+	
+	if(direccion == 40) { // Abajo
+		if(posicionActual.getY() == 9) {
+			resultado = false;
+		}
+		
+		if(devolverLetra(config.getIp(), config.getPuerto(), new Coordenada(posicionActual.getX(), posicionActual.getY()+1)).equalsIgnoreCase("P")) {
+			resultado = false;
+		}
+	}
+	
+	if(direccion == 37) { // Izquierda
+		if(posicionActual.getX() == 0) {
+			resultado = false;
+		}
+		
+		if(devolverLetra(config.getIp(), config.getPuerto(), new Coordenada(posicionActual.getX()-1, posicionActual.getY())).equalsIgnoreCase("P")) {
+			resultado = false;
+		}
+	}
+	
+	
+	return resultado;
+}
+
 class MyKeyListener implements KeyListener {
+
 	@Override
 	public void keyTyped(KeyEvent e) {
 	}
@@ -440,81 +484,78 @@ class MyKeyListener implements KeyListener {
 	public void keyPressed(KeyEvent e) {
 		System.out.println("keyPressed="+e.getKeyCode());
 		
-		if(e.getKeyCode() == 39) { // Derecho
-			posicionActual.setX(posicionActual.getX()+1);
-			//consola("Posicion Actual: " + posicionActual.getX() + "; " + posicionActual.getY());
+			try {
+				if(e.getKeyCode() == 39) { // Derecho
+					if(limites(e.getKeyCode())) {
+						posicionActual.setX(posicionActual.getX()+1);
+						oroGuardia();
+						consola("Posicion Actual: " + posicionActual.getX() + "; " + posicionActual.getY());
+					}
+				}
+				mostrarVecinos();
+			} catch (NumberFormatException | IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		
+		
 			
 			try {
-				mostrarVecinos("localhost", "9020" );
+				if(e.getKeyCode() == 38) { // Arriba
+					if(limites(e.getKeyCode())) {
+						posicionActual.setY(posicionActual.getY()-1);
+						oroGuardia();
+						consola("Posicion Actual: " + posicionActual.getX() + "; " + posicionActual.getY());
+					}
+				}
 				
-				
-			} catch (NumberFormatException e1) {
-				e1.printStackTrace();
-			} catch (UnknownHostException e1) {
-				e1.printStackTrace();
-			} catch (IOException e1) {
+				mostrarVecinos();
+			} catch (NumberFormatException | IOException e1) {
+				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-		}
 		
-		if(e.getKeyCode() == 38) { // Arriba
-			posicionActual.setY(posicionActual.getY()-1);
-			//consola("Posicion Actual: " + posicionActual.getX() + "; " + posicionActual.getY());
-			
 			try {
-				mostrarVecinos("localhost", "9020");
-			} catch (NumberFormatException e1) {
-				e1.printStackTrace();
-			} catch (UnknownHostException e1) {
-				e1.printStackTrace();
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-		}
-		
-		if(e.getKeyCode() == 40) { // Abajo
-			posicionActual.setY(posicionActual.getY()+1);
-			//consola("Posicion Actual: " + posicionActual.getX() + "; " + posicionActual.getY());
-			
-			try {
-				mostrarVecinos("localhost", "9020");
-			} catch (NumberFormatException e1) {
-				e1.printStackTrace();
-			} catch (UnknownHostException e1) {
-				e1.printStackTrace();
-			} catch (IOException e1) {
+				if(e.getKeyCode() == 40) { // Abajo
+					if(limites(e.getKeyCode())) {
+						posicionActual.setY(posicionActual.getY()+1);
+						oroGuardia();
+						consola("Posicion Actual: " + posicionActual.getX() + "; " + posicionActual.getY());
+					}
+				}
+				mostrarVecinos();
+			} catch (NumberFormatException | IOException e1) {
+				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-		}
 		
-		if(e.getKeyCode() == 37) { // Izquierda
-			posicionActual.setX(posicionActual.getX()-1);
-			//consola("Posicion Actual: " + posicionActual.getX() + "; " + posicionActual.getY());
-			
-			
-			
-			try {
-				mostrarVecinos("localhost", "9020");
-				System.out.println(devolverLetra("localhost", "9020", new Coordenada(-1,-1)));
-			} catch (NumberFormatException e1) {
-				e1.printStackTrace();
-			} catch (UnknownHostException e1) {
-				e1.printStackTrace();
-			} catch (IOException e1) {
-				e1.printStackTrace();
+				try {
+					if(e.getKeyCode() == 37) { // Izquierda
+						if(limites(e.getKeyCode())) {
+							posicionActual.setX(posicionActual.getX()-1);
+							oroGuardia();
+							consola("Posicion Actual: " + posicionActual.getX() + "; " + posicionActual.getY());
+					}
+				}
+					mostrarVecinos();
+				} catch (NumberFormatException | IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
 			}
-		}
-		
-	}
 
 	@Override
 	public void keyReleased(KeyEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+		
+		
+	}
+
+	public void keyReleased(KeyEvent e) {
 		System.out.println("keyReleased="+KeyEvent.getKeyText(e.getKeyCode()));
 	}
-}
-
-
-
 }
 
 
@@ -547,6 +588,30 @@ class Login implements Serializable {
 
 	public String getPass() {
 		return pass;
+	}
+}
+
+class Configuracion {
+	
+	private String ip;
+	private String puerto;
+	
+	public Configuracion(String ip, String puerto) {
+		this.ip = ip;
+		this.puerto = puerto;
+	}
+
+	public String getIp() {
+		return ip;
+	}
+	public void setIp(String ip) {
+		this.ip = ip;
+	}
+	public String getPuerto() {
+		return puerto;
+	}
+	public void setPuerto(String puerto) {
+		this.puerto = puerto;
 	}
 }
 

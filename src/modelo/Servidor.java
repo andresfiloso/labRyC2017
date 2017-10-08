@@ -312,18 +312,21 @@ class Coordenada implements Serializable{
     private int x;
     private int y;
     private boolean known;
+    private String letra;
 
     public Coordenada(int x, int y) {
         this.x = x;
         this.y = y;
+        this.known = false;
+        this.letra = "";
+        
     }
-    
-    
-    
+      
     public Coordenada(int x, int y, boolean known) {
 		this.x = x;
 		this.y = y;
 		this.known = false;
+		this.letra = "";
 	}
 
 
@@ -353,7 +356,13 @@ class Coordenada implements Serializable{
 		this.known = known;
 	}
 
+	public String getLetra() {
+		return letra;
+	}
 
+	public void setLetra(String letra) {
+		this.letra = letra;
+	}
 
 	@Override
 	public String toString() {
