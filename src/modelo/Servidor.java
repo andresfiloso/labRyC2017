@@ -35,8 +35,7 @@ public class Servidor extends JFrame implements Runnable{
 	JTextArea[][] laberinto = new JTextArea[matrizSize][matrizSize];
 
 	public Servidor() {
-		
-		
+	
 		txtMensajes = new JTextArea();
 		txtMensajes.setBounds(450, 20, 300, 1000);
 		txtMensajes.setEditable(false);
@@ -46,6 +45,7 @@ public class Servidor extends JFrame implements Runnable{
 		setTitle("Servidor");
 		setSize(800, 500);
 		setLocationRelativeTo(null);
+		setResizable(false);
 		setVisible(true);
 
 		Thread hilo = new Thread(this);
@@ -70,17 +70,6 @@ public class Servidor extends JFrame implements Runnable{
 			boolean juego = false;
 			
 			cliente = servidorJuego.accept(); // esperando una llamada
-			
-			/*
-			DataInputStream mensajesEntrada = new DataInputStream(cliente.getInputStream());
-			String msg = mensajesEntrada.readUTF();
-			
-			if (msg.equalsIgnoreCase("Cerrar")) {
-				servidor.close();
-				System.out.println("Servidor cerrado por admin");
-				log("\nServidor cerrado por admin");
-			}
-			*/
 
 				ObjectInputStream autorizacion = new ObjectInputStream(cliente.getInputStream());
 				Login login = (Login) autorizacion.readObject();
@@ -136,7 +125,6 @@ public class Servidor extends JFrame implements Runnable{
 							System.out.println("Se recibio coordenada: " + aux.getX() + " ;" + aux.getY());
 							
 							if (aux.getX() == -1 && aux.getY() == -1) {
-								cliente.close();
 								consola("Cerrando Servidor de juego por coordenadas -1;-1");
 								this.setVisible(false);
 								servidorJuego.close();
@@ -169,12 +157,6 @@ public class Servidor extends JFrame implements Runnable{
 						e.printStackTrace();
 					}
 					
-					
-				
-			
-		
-
-
 		} catch (IOException e) {
 			JOptionPane.showMessageDialog(null, e.getMessage());
 			System.out.println(e.getMessage());
@@ -219,7 +201,6 @@ public class Servidor extends JFrame implements Runnable{
 		}
 		return valor;
 	}
-	
 	
 	public Coordenada coordenadasEntrada(JTextArea[][] array) {
 		
