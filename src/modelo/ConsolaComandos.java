@@ -1,10 +1,13 @@
 package modelo;
 
+import java.awt.AWTException;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Point;
+import java.awt.Robot;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -13,6 +16,7 @@ import java.net.UnknownHostException;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 
+import javax.sound.midi.Synthesizer;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
@@ -44,7 +48,7 @@ class VentanaConsola extends JFrame {
 	Login loginBash = new Login();
 
 	public VentanaConsola() {
-		
+
 		bash = new JTextArea(init);
 		bash.setFont(new Font("Arial", Font.PLAIN, 15));
 		bash.setEditable(false);
@@ -56,7 +60,7 @@ class VentanaConsola extends JFrame {
 		bashInput.setFont(new Font("Arial", Font.BOLD, 15));
 		bashInput.setPreferredSize(new Dimension(0, 30));
 		add(bashInput, BorderLayout.SOUTH);
-		
+
 		setTitle("Consola de Comandos");
 		setSize(800, 500);
 		setLocationByPlatform(true);
@@ -83,7 +87,7 @@ class VentanaConsola extends JFrame {
 				bashInput.setText(null);
 				procesar(msg);
 			}
-			
+
 			jp.getViewport().setViewPosition((new Point(0, bash.getHeight()))); // Scroll siempre abajo
 
 		};
@@ -91,23 +95,34 @@ class VentanaConsola extends JFrame {
 	};
 
 	public void procesar(String msg) {
-		
+
 		try {
-			
-		String parametros[] = msg.split(" ");
 
-		String comando = parametros[0];
+			String parametros[] = msg.split(" ");
 
-		String noLogin = "Error: Antes de ejecutar un comando de movimiento tiene que conectarse al servidor\n"
-				+ "Utilice el comando login user pass ip port para autenticar\n\n";
+			String comando = parametros[0];
 
-		for (int i = 0; i < parametros.length; i++) {
-			System.out.println(parametros[i]);
-		}
-		
-			if (comando.equalsIgnoreCase("help")) {
+			String noLogin = "Error: Antes de ejecutar un comando de movimiento tiene que conectarse al servidor\n"
+					+ "Utilice el comando login user pass ip port para autenticar\n\n";
+
+			for (int i = 0; i < parametros.length; i++) {
+				System.out.println(parametros[i]);
+			}
+
+			switch (comando) {
+			case "help":
 				VentanaFAQS ventanaFAQS = new VentanaFAQS();
-			} else if (comando.equalsIgnoreCase("login")) {
+				break;
+			case "init":
+				if (parametros[1].equalsIgnoreCase("server")) {
+					int puerto = Integer.parseInt(parametros[2]);
+					new Servidor(puerto);
+				} else if (parametros[1].equalsIgnoreCase("login") && parametros[2].equals("gui")) {
+					System.out.println("login gui");
+					VentanaLogin ventanaLogin = new VentanaLogin();
+				}
+				break;
+			case "login":
 				if (!msg.equalsIgnoreCase("login")) {
 					bash.append("Autorizando usuario: " + parametros[1] + "\n");
 					Login login = new Login(parametros[3], parametros[4], parametros[1], parametros[2]);
@@ -116,42 +131,42 @@ class VentanaConsola extends JFrame {
 					bash.append(
 							"Error: Para utilizar el comando login tiene que ingresar credenciales, ip y puerto\n\n");
 				}
-			} else if (comando.equalsIgnoreCase("exit")) {
-				if(!loginBash.getUser().equalsIgnoreCase("Unlogged")) {	
+				break;
+			case "exit":
+				if (!loginBash.getUser().equalsIgnoreCase("Unlogged")) {
 					cerrar();
-				}else {
+				} else {
 					bash.append("Error: Antes de ejecutar el comando \"exit\" tiene que conectarse al servidor.\n\n");
 				}
-			
-			}else if(comando.equalsIgnoreCase("status")){
-				if(juego == true) {
-					bash.append("Posicion Actual: " + VentanaCliente.posicionActual.getX() + " ;" +
-							VentanaCliente.posicionActual.getY() + " \n\n");
+				break;
+			case "status":
+				if (juego == true) {
+					bash.append("Posicion Actual: " + VentanaCliente.posicionActual.getX() + " ;"
+							+ VentanaCliente.posicionActual.getY() + " \n\n");
 				}
-				
-			}else if (comando.equalsIgnoreCase("clear")) {
+				break;
+			case "clear":
 				bash.setText(init);
-
-			} else if (comando.equalsIgnoreCase("izquierda") || comando.equalsIgnoreCase("arriba")
-					|| comando.equalsIgnoreCase("derecha") || comando.equalsIgnoreCase("abajo")) {
+				break;
+			case "izquierda":
+			case "arriba":
+			case "derecha":
+			case "abajo":
 				if (juego == false) {
 					bash.append(noLogin);
 				} else {
-					mover(comando);
+
 				}
-
-			}
-
-			else {
+				break;
+			default:
 				bash.append("Error: \"" + msg
 						+ "\" no se reconoce como un comando válido. Ingrese \"help\" para mas información\n\n");
+				throw new IllegalArgumentException("Error: \"" + msg
+						+ "\" no se reconoce como un comando válido. Ingrese \"help\" " + "para mas información\n\n");
 			}
 		} catch (Exception e) {
-			//loginBash.setUser("Unlogged");
+			// loginBash.setUser("Unlogged");
 			System.out.println(e.getMessage());
-			bash.append("Error: \"" + msg
-					+ "\" no se reconoce como un comando válido. Ingrese \"help\" para mas información\n\n");
-			
 		}
 
 	}
@@ -159,50 +174,42 @@ class VentanaConsola extends JFrame {
 	public boolean loguear(Login login) {
 		boolean resultado = true;
 		Coordenada entradaXY = new Coordenada();
-		
+
 		Socket cliente;
 		try {
 			cliente = new Socket(login.getIp(), Integer.parseInt(login.getPuerto()));
-			
+
 			ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
 
 			out.writeObject(login);
-			
-				ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
-				entradaXY = (Coordenada) entrada.readObject();
-					
+
+			ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
+			entradaXY = (Coordenada) entrada.readObject();
+
 			loginBash = login;
 			juego = true;
-	
+
 			VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, login.getIp(), login.getPuerto());
 			ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-			
-			
-			
+
 		} catch (NumberFormatException | IOException | ClassNotFoundException e) {
 			bash.append("Error en cliente: " + e.getMessage() + "\n\n");
 			System.out.println(e.getMessage());
-			
+
 		}
 		return resultado;
 	}
 
-	public void mover(String mover) {
-		System.out.println("proeso de movimiento con socket");
-	}
-	
 	public void cerrar() throws NumberFormatException, UnknownHostException, IOException {
 		bash.append("Cerrando Servidor por instruccion de usuario\n\n");
-		VentanaCliente.devolverLetra(loginBash.getIp(), loginBash.getPuerto(), new Coordenada(-1,-1));
-		
+		VentanaCliente.devolverLetra(loginBash.getIp(), loginBash.getPuerto(), new Coordenada(-1, -1));
 	}
 
 }
 
-
 class VentanaFAQS extends JFrame {
 
-	JLabel titulo, help, clear, login, exit, izquierda, arriba, derecha, abajo, status;
+	JLabel titulo, help, clear, initServer, loginGui, login, exit, izquierda, arriba, derecha, abajo, status;
 
 	int y = 50;
 	int x = 10;
@@ -228,12 +235,24 @@ class VentanaFAQS extends JFrame {
 		add(clear);
 		y += 30;
 
+		initServer = new JLabel("init server port");
+		initServer.setBounds(x, y, w, h);
+		initServer.setFont(new Font("Arial", Font.BOLD, 15));
+		add(initServer);
+		y += 30;
+
+		loginGui = new JLabel("init login gui");
+		loginGui.setBounds(x, y, w, h);
+		loginGui.setFont(new Font("Arial", Font.BOLD, 15));
+		add(loginGui);
+		y += 30;
+
 		login = new JLabel("login user pass ip port");
 		login.setBounds(x, y, w, h);
 		login.setFont(new Font("Arial", Font.BOLD, 15));
 		add(login);
 		y += 30;
-		
+
 		status = new JLabel("status");
 		status.setBounds(x, y, w, h);
 		status.setFont(new Font("Arial", Font.BOLD, 15));
