@@ -109,15 +109,15 @@ public class Servidor extends JFrame implements Runnable {
 					// socket para guardar las llamadas
 
 					consola("Esperando peticion de casillero...");
-					System.out.println("Esperando peticion de casillero...");
+					//System.out.println("Esperando peticion de casillero...");
 					cliente = servidorJuego.accept(); // esperando una llamada
-					System.out.println("Peticion recibida");
+					//System.out.println("Peticion recibida");
 					consola("Petición recibida");
 
 					ObjectInputStream solicitudMovimiento = new ObjectInputStream(cliente.getInputStream());
 					aux = (Coordenada) solicitudMovimiento.readObject();
 					consola("Se recibio coordenada: " + aux.getX() + "; " + aux.getY());
-					System.out.println("Se recibio coordenada: " + aux.getX() + " ;" + aux.getY());
+					//System.out.println("Se recibio coordenada: " + aux.getX() + " ;" + aux.getY());
 
 					if (aux.getX() == -1 && aux.getY() == -1) {
 						consola("Cerrando Servidor de juego por coordenadas -1;-1");
@@ -128,12 +128,12 @@ public class Servidor extends JFrame implements Runnable {
 
 					String valor = devolverValor(aux, laberinto);
 					consola("Se devuelve valor: " + valor);
-					System.out.println("Se devuelve valor: " + valor);
+					//System.out.println("Se devuelve valor: " + valor);
 
 					DataOutputStream devolver = new DataOutputStream(cliente.getOutputStream());
 
 					devolver.writeUTF(valor);
-					System.out.println("Se devuelve letra: " + valor);
+					//System.out.println("Se devuelve letra: " + valor);
 
 					if (juego == false) {
 						cliente.close();
@@ -296,7 +296,7 @@ class Coordenada implements Serializable {
 	public Coordenada(int x, int y, boolean known) {
 		this.x = x;
 		this.y = y;
-		this.known = false;
+		this.known = known;
 		this.letra = "";
 	}
 
