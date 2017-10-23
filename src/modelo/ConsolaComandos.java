@@ -35,16 +35,12 @@ public class ConsolaComandos {
 }
 
 class VentanaConsola extends JFrame {
-
 	boolean juego = false;
-
 	JTextArea bash;
 	JTextField bashInput = new JTextField();
 	JButton btnEnviar;
 	JScrollPane jp;
-
 	String init = "Consola Cliente para Laberinto v.1\nIngrese \"help\" para mas información\n\n";
-
 	Login loginBash = new Login();
 
 	public VentanaConsola() {
@@ -68,12 +64,7 @@ class VentanaConsola extends JFrame {
 	}
 
 	Action action = new AbstractAction() {
-
-		
-		
 		String msg = "";
-		
-
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			Calendar calendario = new GregorianCalendar();
@@ -90,9 +81,7 @@ class VentanaConsola extends JFrame {
 				bashInput.setText(null);
 				procesar(msg);
 			}
-
 			jp.getViewport().setViewPosition((new Point(0, bash.getHeight()))); // Scroll siempre abajo
-
 		};
 
 	};
@@ -100,11 +89,8 @@ class VentanaConsola extends JFrame {
 	public void procesar(String msg) {
 
 		try {
-
 			String parametros[] = msg.split(" ");
-
 			String comando = parametros[0];
-
 			String noLogin = "Error: Antes de ejecutar un comando de movimiento tiene que conectarse al servidor\n"
 					+ "Utilice el comando login user pass ip port para autenticar\n\n";
 
@@ -176,13 +162,6 @@ class VentanaConsola extends JFrame {
 
 	}
 	
-	private void type(int i)
-	  {
-	    
-	  }
-
-	
-	
 	public boolean loguear(Login login) {
 		boolean resultado = true;
 		Coordenada entradaXY = new Coordenada();
@@ -190,14 +169,10 @@ class VentanaConsola extends JFrame {
 		Socket cliente;
 		try {
 			cliente = new Socket(login.getIp(), Integer.parseInt(login.getPuerto()));
-
 			ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
-
 			out.writeObject(login);
-
 			ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
 			entradaXY = (Coordenada) entrada.readObject();
-			
 			if(entradaXY.getX() == 100 && entradaXY.getY() == 100) {
 				juego = false;
 				bash.append("Servidor | " + login.getPuerto() + " | Credenciales incorrectas\n");
@@ -209,16 +184,11 @@ class VentanaConsola extends JFrame {
 				juego = true;
 
 				VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, login.getIp(), login.getPuerto());
-				ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-				
+				ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);	
 			}
-
-			
-
 		} catch (NumberFormatException | IOException | ClassNotFoundException e) {
 			bash.append("Error en cliente: " + e.getMessage() + "\n\n");
 			System.out.println(e.getMessage());
-
 		}
 		return resultado;
 	}
@@ -227,13 +197,11 @@ class VentanaConsola extends JFrame {
 		bash.append("Cerrando Servidor por instruccion de usuario\n\n");
 		VentanaCliente.devolverLetra(loginBash.getIp(), loginBash.getPuerto(), new Coordenada(-1, -1));
 	}
-
 }
 
 class VentanaFAQS extends JFrame {
 
 	JLabel titulo, help, clear, initServer, loginGui, login, exit, izquierda, arriba, derecha, abajo, status;
-
 	int y = 50;
 	int x = 10;
 	int w = 300;
