@@ -69,7 +69,10 @@ class VentanaConsola extends JFrame {
 
 	Action action = new AbstractAction() {
 
+		
+		
 		String msg = "";
+		
 
 		@Override
 		public void actionPerformed(ActionEvent e) {
@@ -155,7 +158,7 @@ class VentanaConsola extends JFrame {
 				if (juego == false) {
 					bash.append(noLogin);
 				} else {
-
+					// No esta desarrollado
 				}
 				break;
 			default:
@@ -168,9 +171,18 @@ class VentanaConsola extends JFrame {
 			// loginBash.setUser("Unlogged");
 			System.out.println(e.getMessage());
 		}
+		
+		
 
 	}
+	
+	private void type(int i)
+	  {
+	    
+	  }
 
+	
+	
 	public boolean loguear(Login login) {
 		boolean resultado = true;
 		Coordenada entradaXY = new Coordenada();
@@ -185,12 +197,23 @@ class VentanaConsola extends JFrame {
 
 			ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
 			entradaXY = (Coordenada) entrada.readObject();
+			
+			if(entradaXY.getX() == 100 && entradaXY.getY() == 100) {
+				juego = false;
+				bash.append("Servidor | " + login.getPuerto() + " | Credenciales incorrectas\n");
+			}else {
+				
+				bash.append("Servidor | " + login.getPuerto() + " | Autorizado\n");
+				
+				loginBash = login;
+				juego = true;
 
-			loginBash = login;
-			juego = true;
+				VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, login.getIp(), login.getPuerto());
+				ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+				
+			}
 
-			VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, login.getIp(), login.getPuerto());
-			ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+			
 
 		} catch (NumberFormatException | IOException | ClassNotFoundException e) {
 			bash.append("Error en cliente: " + e.getMessage() + "\n\n");
@@ -265,6 +288,7 @@ class VentanaFAQS extends JFrame {
 		add(exit);
 		y += 30;
 
+		/*
 		izquierda = new JLabel("izquierda");
 		izquierda.setBounds(x, y, w, h);
 		izquierda.setFont(new Font("Arial", Font.BOLD, 15));
@@ -288,6 +312,7 @@ class VentanaFAQS extends JFrame {
 		abajo.setFont(new Font("Arial", Font.BOLD, 15));
 		add(abajo);
 		y += 30;
+		*/
 
 		setLayout(null); // para que los controles no esten uno encima del otro
 		setTitle("Comandos");
