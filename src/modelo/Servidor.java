@@ -2,23 +2,20 @@ package modelo;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.List;
 
-import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 
 public class Servidor extends JFrame implements Runnable {
@@ -41,7 +38,7 @@ public class Servidor extends JFrame implements Runnable {
 		txtMensajes = new JTextArea();
 		txtMensajes.setBounds(450, 20, 300, 1000);
 		txtMensajes.setEditable(false);
-		// add(txtMensajes);
+		add(txtMensajes);
 
 		setLayout(null);
 		setTitle("Servidor");
@@ -74,35 +71,46 @@ public class Servidor extends JFrame implements Runnable {
 			while (juego == false) {
 			cliente = servidorJuego.accept(); // esperando una llamada
 
-			ObjectInputStream autorizacion = new ObjectInputStream(cliente.getInputStream());
-			Login login = (Login) autorizacion.readObject();
+			DataInputStream autorizacion = new DataInputStream(cliente.getInputStream());
+			
+			consola("DIRECCION IP: " +  cliente.getInetAddress());
+			consola("PUERTO:" + cliente.getPort());
+			
+			String credenciales = autorizacion.readUTF();
+		
+			List<String> settings = readMessage(credenciales);
+			
+			String user = settings.get(1);
+			String pass = settings.get(2);
+			
+			settings.clear();
+			
 
-			System.out.println("Usuario a validar: " + login.getUser());
-			System.out.println("Password a validar: " + login.getPass());
-
-			if (autorizar(login.getUser(), login.getPass())) {
-				consola("Bienvenido: " + login.getUser());
+			if (autorizar(user, pass)) {
+				consola("Bienvenido: " + user);
 				consola("Cerrando login y creando mapa de juego...");
 				consola("Tamaño del laberinto: " + matrizSize);
 
 				laberinto = dibujarLaberinto(matrizSize);
 				Coordenada entradaXY = coordenadasEntrada(laberinto);
+				
+				String command = "auth";
+				
+				settings.add(command);
+				settings.add(Integer.toString(entradaXY.getX()));
+				settings.add(Integer.toString(entradaXY.getY()));
+				
+				String message = buildMessage(settings);
 
-				ObjectOutputStream devolucionCoordenada = new ObjectOutputStream(cliente.getOutputStream());
-				devolucionCoordenada.writeObject(entradaXY);
-				consola("Enviando coordenadas de entrada");
+				DataOutputStream devolucionCoordenada = new DataOutputStream(cliente.getOutputStream());
+
+				devolucionCoordenada.writeUTF(message);
+				//consola("Enviando coordenadas de entrada");
 				juego = true; // arranca el juego
 
-				/*
-				 * clienteLogin.close(); log("\nSe cierra el servidor de Logueo\n");
-				 * servidorLogin.close(); System.out.println("Servidor de Logueo cerrado");
-				 */
-
 			} else {
-				Coordenada denegado = new Coordenada (100,100);
-				ObjectOutputStream devolucionCoordenada = new ObjectOutputStream(cliente.getOutputStream());
-				devolucionCoordenada.writeObject(denegado);
-				
+				DataOutputStream denegarAcceso = new DataOutputStream(cliente.getOutputStream());
+				denegarAcceso.writeUTF("Error");
 				consola("Acesso denegado.. Servidor cerrado");
 				//servidorJuego.close();
 			}
@@ -113,7 +121,6 @@ public class Servidor extends JFrame implements Runnable {
 	
 				try {	
 					Coordenada aux;
-
 					// socket para guardar las llamadas
 
 					consola("Esperando peticion de casillero...");
@@ -122,35 +129,62 @@ public class Servidor extends JFrame implements Runnable {
 					// System.out.println("Peticion recibida");
 					consola("Petición recibida");
 
-					ObjectInputStream solicitudMovimiento = new ObjectInputStream(cliente.getInputStream());
-					aux = (Coordenada) solicitudMovimiento.readObject();
+					DataInputStream solicitudMovimiento = new DataInputStream(cliente.getInputStream());
+					String message = solicitudMovimiento.readUTF();
+					
+					List<String> settings = readMessage(message);
+			
+			
+					consola("DIRECCION IP: " +  cliente.getInetAddress());
+					consola("PUERTO:" + cliente.getPort());
 
-					aux = desencriptarCoordenada(aux);
+					//aux = desencriptarCoordenada(aux);
 					// consola("Se recibio coordenada: " + aux.getX() + "; " + aux.getY());
 					// System.out.println("Se recibio coordenada: " + aux.getX() + " ;" +
 					// aux.getY());
 
-					if (aux.getX() == -1 && aux.getY() == -1) {
-						consola("Cerrando Servidor de juego por coordenadas -1;-1");
-						juego = false;
-						servidorJuego.close();
-						setVisible(false);
-						System.out.println("Servidor de juego cerrado por coordenadas -1;-1");
-						break;
+					if(settings.get(0).equals("square")) {
+						aux = new Coordenada(Integer.parseInt(settings.get(1)), Integer.parseInt(settings.get(2)));
+						
+						settings.clear();
+						
+						if (aux.getX() == -1 && aux.getY() == -1) {
+							consola("Cerrando Servidor de juego por coordenadas -1;-1");
+							juego = false;
+							servidorJuego.close();
+							setVisible(false);
+							System.out.println("Servidor de juego cerrado por coordenadas -1;-1");
+							break;
+						}
+						
+						String valor = devolverValor(aux, laberinto);
+						//consola("Se devuelve valor: " + valor);
+						// System.out.println("Se devuelve letra: " + valor);
+
+						DataOutputStream devolver = new DataOutputStream(cliente.getOutputStream());
+						
+						String command = "value";
+						settings.add(command);
+						settings.add(valor);
+						
+						String respuesta = buildMessage(settings);
+						
+						devolver.writeUTF(respuesta);
+
+						//int encript = encriptarValorLetra(valor);
+
+						// System.out.println("El valor de la letra es: " + encript);
+
+						//devolver.writeInt(encript);
+						// System.out.println("Se devuelve letra: " + valor);
+						
+						
 					}
+					
+					
+					
 
-					String valor = devolverValor(aux, laberinto);
-					consola("Se devuelve valor: " + valor);
-					// System.out.println("Se devuelve letra: " + valor);
-
-					DataOutputStream devolver = new DataOutputStream(cliente.getOutputStream());
-
-					int encript = encriptarValorLetra(valor);
-
-					// System.out.println("El valor de la letra es: " + encript);
-
-					devolver.writeInt(encript);
-					// System.out.println("Se devuelve letra: " + valor);
+					
 				
 
 			} catch (Exception e) {
@@ -166,14 +200,29 @@ public class Servidor extends JFrame implements Runnable {
 			System.out.println(e.getMessage());
 			// e.printStackTrace();
 
-		} catch (ClassNotFoundException e) {
-			JOptionPane.showMessageDialog(null, e.getMessage());
-			// e.printStackTrace();
-
 		}
 
 	}
+	
+	public String buildMessage(List<String> settings){
+		String message = "";
+		for(String m : settings) {
+			message = message.concat(m + " ");
+		}
+		return message;
+	}
 
+	public List<String> readMessage(String message){
+		List<String> settings = new ArrayList<String>();
+		
+		String[] data = message.split(" ");
+		for(String d: data) {
+			settings.add(d);
+		}
+		
+		return settings;
+	}
+		
 	public void consola(String mensaje) {
 		Calendar calendario = new GregorianCalendar();
 		txtMensajes.append(calendario.get(Calendar.HOUR) + ":" + calendario.get(Calendar.MINUTE) + ":"

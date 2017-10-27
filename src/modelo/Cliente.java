@@ -1,23 +1,24 @@
 package modelo;
 
-import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.Robot;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -38,7 +39,6 @@ public class Cliente {
 class VentanaLogin extends JFrame implements ActionListener {
 
 	JButton btnLogin;
-	JTextField ip;
 	JTextField puerto;
 	JTextField user;
 	JTextField password;
@@ -48,15 +48,7 @@ class VentanaLogin extends JFrame implements ActionListener {
 		JLabel titulo = new JLabel("Login");
 		titulo.setBounds(10, 10, 50, 20);
 		add(titulo);
-
-		JLabel ipLabel = new JLabel("IP:");
-		ipLabel.setBounds(10, 50, 50, 20);
-		add(ipLabel);
-
-		ip = new JTextField("localhost");
-		ip.setBounds(70, 50, 100, 20);
-		add(ip);
-
+		
 		JLabel puertoLabel = new JLabel("Puerto: ");
 		puertoLabel.setBounds(10, 80, 50, 20);
 		add(puertoLabel);
@@ -110,30 +102,74 @@ class VentanaLogin extends JFrame implements ActionListener {
 			try {
 				boolean esperando = true;
 				Coordenada entradaXY = new Coordenada();
-				Login login = new Login(ip.getText(), puerto.getText(), user.getText(), password.getText());
-				Socket cliente = new Socket(ip.getText(), Integer.parseInt(puerto.getText()));
-				ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
-				out.writeObject(login);
+			
+				Login login = new Login(user.getText(), password.getText());
+				
+				String command = "log";
+				List<String> settings = new ArrayList<String>();
+				settings.add(command);
+				settings.add(user.getText());
+				settings.add(password.getText());
+				String credentials = buildMessage(settings);
+				
+				System.out.println(credentials);
+				
+				Socket cliente = new Socket(InetAddress.getLocalHost().getHostAddress(), Integer.parseInt(puerto.getText()));
+				
+				DataOutputStream out = new DataOutputStream(cliente.getOutputStream());
+				
+				out.writeUTF(credentials);
 
-				while (esperando == true) {
-					ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
-					entradaXY = (Coordenada) entrada.readObject();
-					if (entradaXY != null) {
-						esperando = false;
-					}
+			
+				DataInputStream entrada = new DataInputStream(cliente.getInputStream());
+				String dataRaw = entrada.readUTF();
+				
+				List<String> data = readMessage(dataRaw);
+				
+				if (data.get(0).equalsIgnoreCase("Auth")) {
+					entradaXY.setX(Integer.parseInt(data.get(1)));
+					entradaXY.setY(Integer.parseInt(data.get(2)));
+					esperando = false;
+				}else {
+					System.out.println("Error");
+					esperando = false;
 				}
+				
 				setVisible(false);
-				VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, ip.getText(), puerto.getText());
+				VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, puerto.getText());
 				ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			} catch (Exception ex) {
+				ex.printStackTrace();
 				System.out.println("Error en cliente " + ex.getMessage());
 			}
 		}
 	}
+	
+	public String buildMessage(List<String> settings){
+		String message = "";
+		for(String m : settings) {
+			message = message.concat(m + " ");
+		}
+		return message;
+	}
+	
+	public List<String> readMessage(String message){
+		List<String> settings = new ArrayList<String>();
+		
+		String[] data = message.split(" ");
+		for(String d: data) {
+			settings.add(d);
+		}
+		
+		return settings;
+	}
+		
+	
 }
 
 class VentanaCliente extends JFrame {
 
+	static int puerto = 0;
 	int oro = 0;
 	boolean llave = false;
 	public static int key = 346;
@@ -148,18 +184,20 @@ class VentanaCliente extends JFrame {
 	Coordenada[][] mapa = new Coordenada[20][20];
 	ArrayList<Coordenada> oroYaTomado = new ArrayList<Coordenada>();
 	JTextArea casillero;
-	JTextArea txtMensajes;
+	static JTextArea txtMensajes;
 	JLabel oroLabel;
 	Configuracion config;
 
-	public VentanaCliente(Coordenada entrada, String ip, String puerto) { 
+	public VentanaCliente(Coordenada entrada, String port) throws UnknownHostException { 
+		
+		puerto = Integer.parseInt(port);
 		posicionActual = entrada;
 		xEntrada = entrada.getX();
 		yEntrada = entrada.getY();
 		listener = new MyKeyListener();
 		addKeyListener(listener);
 		setFocusable(true);
-		config = new Configuracion(ip, puerto);
+		//config = new Configuracion(InetAddress.getLocalHost().getHostAddress(), puerto);
 		JLabel entradaLabel = new JLabel("Coordenadas de entrada: " + entrada.getX() + "; " + entrada.getY());
 		entradaLabel.setBounds(10, 10, 200, 20);
 		add(entradaLabel);
@@ -171,7 +209,7 @@ class VentanaCliente extends JFrame {
 		
 		txtMensajes = new JTextArea();
 		txtMensajes.setBounds(450, 20, 300, 1000);
-		// add(txtMensajes);
+		add(txtMensajes);
 		txtMensajes.setEditable(false);
 		consola("Inicio de juego.");
 
@@ -189,6 +227,7 @@ class VentanaCliente extends JFrame {
 			System.out.println(e.getMessage());
 		}
 	}
+	
 
 	public void initMapa() {
 		System.out.println("Inicializando mapa");
@@ -205,7 +244,7 @@ class VentanaCliente extends JFrame {
 		return casillero;
 	}
 
-	public void consola(String mensaje) {
+	public static void consola(String mensaje) {
 		Calendar calendario = new GregorianCalendar();
 		txtMensajes.append(calendario.get(Calendar.HOUR) + ":" + calendario.get(Calendar.MINUTE) + ":"
 				+ calendario.get(Calendar.SECOND));
@@ -243,7 +282,7 @@ class VentanaCliente extends JFrame {
 
 		for (Coordenada c : coordenadas) {
 			if (c.getX() >= 0 && c.getX() <= 19 && c.getY() >= 0 && c.getY() <= 19) {
-				mapa[c.getX()][c.getY()].setLetra(devolverLetra(config.getIp(), config.getPuerto(), c));
+				mapa[c.getX()][c.getY()].setLetra(devolverLetra(c));
 				
 				if (mapa[c.getX()][c.getY()].isKnown() == false) {
 					add(posicionar(format(new JTextArea(), mapa[c.getX()][c.getY()].getLetra(), c), c), c);
@@ -254,18 +293,58 @@ class VentanaCliente extends JFrame {
 			add(posicionar(format(new JTextArea(), " ", posicionActual), posicionActual));
 		}
 	}
+	
+	public static String buildMessage(List<String> settings){
+		String message = "";
+		for(String m : settings) {
+			message = message.concat(m + " ");
+		}
+		return message;
+	}
+	
+	public static List<String> readMessage(String message){
+		List<String> settings = new ArrayList<String>();
+		
+		String[] data = message.split(" ");
+		for(String d: data) {
+			settings.add(d);
+		}
+		
+		return settings;
+	}
 
-	public static String devolverLetra(String ip, String puerto, Coordenada c)
+	public static String devolverLetra(Coordenada c)
 			throws NumberFormatException, UnknownHostException, IOException {
 		int letraEncript = 0;
 		String letra = "";
-		Socket cliente = new Socket(ip, Integer.parseInt(puerto));
-		ObjectOutputStream pedido = new ObjectOutputStream(cliente.getOutputStream());
-		c = encriptarCoordenada(c);
-		pedido.writeObject(c);
+		Socket cliente = new Socket(InetAddress.getLocalHost().getHostAddress(), puerto);
+		
+		consola("DIRECCION IP: " +  cliente.getInetAddress());
+		consola("PUERTO:" + cliente.getPort());
+		
+		List<String> settings = new ArrayList<String>(); 
+		String command = "square";
+		settings.add(command);
+		settings.add(Integer.toString(c.getX()));
+		settings.add(Integer.toString(c.getY()));
+		
+		String message = buildMessage(settings);
+		
+		DataOutputStream pedido = new DataOutputStream(cliente.getOutputStream());
+		//c = encriptarCoordenada(c);
+		pedido.writeUTF(message);
 		DataInputStream recibir = new DataInputStream(cliente.getInputStream());
-		letraEncript = recibir.readInt();
-		letra = desencriptarLetra(letraEncript);
+		
+		String dataRaw = recibir.readUTF();
+		
+		List<String> data = readMessage(dataRaw);
+		
+		if(data.get(0).equals("value")) {
+			letra = data.get(1);
+		}
+		
+		//letraEncript = recibir.readInt();
+		//letra = desencriptarLetra(letraEncript);
 		cliente.close();
 		return letra;
 	}
@@ -364,8 +443,7 @@ class VentanaCliente extends JFrame {
 				}
 			}
 			if (tomado == false) {
-				if (devolverLetra(config.getIp(), config.getPuerto(),
-						new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("O")) {
+				if (devolverLetra(new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("O")) {
 					oro++;
 					respuesta = true;
 					laberinto[posicionActual.getX()][posicionActual.getY()].setText("X");
@@ -383,8 +461,7 @@ class VentanaCliente extends JFrame {
 	public boolean checkGuardia() throws NumberFormatException, UnknownHostException, IOException {
 		boolean respuesta = false;
 		try {
-			if (devolverLetra(config.getIp(), config.getPuerto(),
-					new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("G")) {
+			if (devolverLetra(new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("G")) {
 				if (oro == 0) {
 					JOptionPane.showMessageDialog(null, "No tiene oro para pagar al guardia. Perdirse!");
 					posicionActual.setX(xEntrada);
@@ -406,8 +483,7 @@ class VentanaCliente extends JFrame {
 	public boolean checkSalida() throws NumberFormatException, UnknownHostException, IOException {
 		boolean respuesta = false;
 		try {
-			if (devolverLetra(config.getIp(), config.getPuerto(),
-					new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("S")) {
+			if (devolverLetra(new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("S")) {
 				if (llave == true) {
 					JOptionPane.showMessageDialog(null, "Ganaste! Llegaste a la salida");
 					posicionActual.setX(xEntrada);
@@ -429,8 +505,7 @@ class VentanaCliente extends JFrame {
 	public boolean checkLlave() throws NumberFormatException, UnknownHostException, IOException {
 		boolean respuesta = false;
 		try {
-			if (devolverLetra(config.getIp(), config.getPuerto(),
-					new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("K")) {
+			if (devolverLetra(new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("K")) {
 				llave = true;
 				JOptionPane.showMessageDialog(null, "Encontraste la llave. Ahora encontra la salida!");
 				respuesta = true;
@@ -448,8 +523,7 @@ class VentanaCliente extends JFrame {
 			if (posicionActual.getX() == 19) {
 				resultado = false;
 			}
-			if (devolverLetra(config.getIp(), config.getPuerto(),
-					new Coordenada(posicionActual.getX() + 1, posicionActual.getY())).equalsIgnoreCase("P")) {
+			if (devolverLetra(new Coordenada(posicionActual.getX() + 1, posicionActual.getY())).equalsIgnoreCase("P")) {
 				resultado = false;
 			}
 		}
@@ -457,8 +531,7 @@ class VentanaCliente extends JFrame {
 			if (posicionActual.getY() == 0) {
 				resultado = false;
 			}
-			if (devolverLetra(config.getIp(), config.getPuerto(),
-					new Coordenada(posicionActual.getX(), posicionActual.getY() - 1)).equalsIgnoreCase("P")) {
+			if (devolverLetra(new Coordenada(posicionActual.getX(), posicionActual.getY() - 1)).equalsIgnoreCase("P")) {
 				resultado = false;
 			}
 		}
@@ -466,8 +539,7 @@ class VentanaCliente extends JFrame {
 			if (posicionActual.getY() == 19) {
 				resultado = false;
 			}
-			if (devolverLetra(config.getIp(), config.getPuerto(),
-					new Coordenada(posicionActual.getX(), posicionActual.getY() + 1)).equalsIgnoreCase("P")) {
+			if (devolverLetra(new Coordenada(posicionActual.getX(), posicionActual.getY() + 1)).equalsIgnoreCase("P")) {
 				resultado = false;
 			}
 		}
@@ -475,8 +547,7 @@ class VentanaCliente extends JFrame {
 			if (posicionActual.getX() == 0) {
 				resultado = false;
 			}
-			if (devolverLetra(config.getIp(), config.getPuerto(),
-					new Coordenada(posicionActual.getX() - 1, posicionActual.getY())).equalsIgnoreCase("P")) {
+			if (devolverLetra(new Coordenada(posicionActual.getX() - 1, posicionActual.getY())).equalsIgnoreCase("P")) {
 				resultado = false;
 			}
 		}
@@ -484,7 +555,7 @@ class VentanaCliente extends JFrame {
 	}
 
 	public void salir() throws NumberFormatException, UnknownHostException, IOException {
-		devolverLetra(config.getIp(), config.getPuerto(), new Coordenada(-1, -1));
+		devolverLetra(new Coordenada(-1, -1));
 		this.setVisible(false);
 		System.exit(0);
 		return;
@@ -550,25 +621,15 @@ class VentanaCliente extends JFrame {
 }
 
 class Login implements Serializable {
-	private String ip;
-	private String puerto;
 	private String user;
 	private String pass;
 
-	public Login(String ip, String puerto, String user, String pass) {
-		this.ip = ip;
-		this.puerto = puerto;
+	public Login(String user, String pass) {
 		this.user = user;
 		this.pass = pass;
 	}
 	public Login() {
 		this.user = "unlogged";
-	}
-	public String getIp() {
-		return ip;
-	}
-	public String getPuerto() {
-		return puerto;
 	}
 	public void setUser(String user) {
 		this.user = user;

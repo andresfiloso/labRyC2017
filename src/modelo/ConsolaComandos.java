@@ -11,6 +11,7 @@ import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Calendar;
@@ -114,8 +115,8 @@ class VentanaConsola extends JFrame {
 			case "login":
 				if (!msg.equalsIgnoreCase("login")) {
 					bash.append("Autorizando usuario: " + parametros[1] + "\n");
-					Login login = new Login(parametros[3], parametros[4], parametros[1], parametros[2]);
-					loguear(login);
+					Login login = new Login(parametros[1], parametros[2]);
+					loguear();
 				} else {
 					bash.append(
 							"Error: Para utilizar el comando login tiene que ingresar credenciales, ip y puerto\n\n");
@@ -162,47 +163,15 @@ class VentanaConsola extends JFrame {
 
 	}
 	
-	public boolean loguear(Login login) {
+	public boolean loguear() {
 		boolean resultado = true;
-		Coordenada entradaXY = new Coordenada();
-
-		Socket cliente;
-		try {
-			cliente = new Socket(login.getIp(), Integer.parseInt(login.getPuerto()));
-			ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
-			
-			out.writeObject(login);
-			
-			System.out.println(out);
-			
-			ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
-			
-			
-			
-			entradaXY = (Coordenada) entrada.readObject();
-			if(entradaXY.getX() == 100 && entradaXY.getY() == 100) {
-				juego = false;
-				bash.append("Servidor | " + login.getPuerto() + " | Credenciales incorrectas\n");
-			}else {
-				
-				bash.append("Servidor | " + login.getPuerto() + " | Autorizado\n");
-				
-				loginBash = login;
-				juego = true;
-
-				VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, login.getIp(), login.getPuerto());
-				ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);	
-			}
-		} catch (NumberFormatException | IOException | ClassNotFoundException e) {
-			bash.append("Error en cliente: " + e.getMessage() + "\n\n");
-			System.out.println(e.getMessage());
-		}
+		
 		return resultado;
 	}
 
 	public void cerrar() throws NumberFormatException, UnknownHostException, IOException {
 		bash.append("Cerrando Servidor por instruccion de usuario\n\n");
-		VentanaCliente.devolverLetra(loginBash.getIp(), loginBash.getPuerto(), new Coordenada(-1, -1));
+		//VentanaCliente.devolverLetra(loginBash.getIp(), loginBash.getPuerto(), new Coordenada(-1, -1));
 	}
 }
 
