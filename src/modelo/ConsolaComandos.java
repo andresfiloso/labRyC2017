@@ -170,8 +170,15 @@ class VentanaConsola extends JFrame {
 		try {
 			cliente = new Socket(login.getIp(), Integer.parseInt(login.getPuerto()));
 			ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
+			
 			out.writeObject(login);
+			
+			System.out.println(out);
+			
 			ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
+			
+			
+			
 			entradaXY = (Coordenada) entrada.readObject();
 			if(entradaXY.getX() == 100 && entradaXY.getY() == 100) {
 				juego = false;
