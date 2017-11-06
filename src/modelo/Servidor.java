@@ -2,13 +2,12 @@ package modelo;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.Serializable;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -22,10 +21,13 @@ public class Servidor extends JFrame implements Runnable {
 
 	JTextArea txtMensajes;
 
+	Helper h = new Helper();
+
 	String authUser = "admin";
 	String authPass = "admin";
 
 	int puerto;
+	Coordenada posicionActual = new Coordenada();
 
 	int matrizSize = 20;
 
@@ -65,164 +67,119 @@ public class Servidor extends JFrame implements Runnable {
 			System.out.println("Servidor iniciado en puerto: " + puerto);
 			consola("Servidor iniciado en puerto: " + puerto);
 
-			boolean juego = false;
+			while (true) {
+				cliente = servidorJuego.accept(); // esperando una llamada
 
-			
-			while (juego == false) {
-			cliente = servidorJuego.accept(); // esperando una llamada
+				Paquete solicitud = new Paquete();
+				ObjectInputStream credencialesStream = new ObjectInputStream(cliente.getInputStream());
+				solicitud = (Paquete) credencialesStream.readObject(); // log user pass
 
-			DataInputStream autorizacion = new DataInputStream(cliente.getInputStream());
-			
-			consola("DIRECCION IP: " +  cliente.getInetAddress());
-			consola("PUERTO:" + cliente.getPort());
-			
-			String credenciales = autorizacion.readUTF();
-		
-			List<String> settings = readMessage(credenciales);
-			
-			String user = settings.get(1);
-			String pass = settings.get(2);
-			
-			settings.clear();
-			
+				solicitud = h.desencriptarPaquete(solicitud);
 
-			if (autorizar(user, pass)) {
-				consola("Bienvenido: " + user);
-				consola("Cerrando login y creando mapa de juego...");
-				consola("Tamaño del laberinto: " + matrizSize);
+				switch (solicitud.getCommand()) {
+				case "log":
+					String user = solicitud.getArgs().get(0);
+					String pass = solicitud.getArgs().get(1);
 
-				laberinto = dibujarLaberinto(matrizSize);
-				Coordenada entradaXY = coordenadasEntrada(laberinto);
-				
-				String command = "auth";
-				
-				settings.add(command);
-				settings.add(Integer.toString(entradaXY.getX()));
-				settings.add(Integer.toString(entradaXY.getY()));
-				
-				String message = buildMessage(settings);
+					if (autorizar(user, pass)) {
+						consola("Bienvenido: " + user);
 
-				DataOutputStream devolucionCoordenada = new DataOutputStream(cliente.getOutputStream());
+						laberinto = dibujarLaberinto(matrizSize);
+						posicionActual = coordenadasEntrada(laberinto);
 
-				devolucionCoordenada.writeUTF(message);
-				//consola("Enviando coordenadas de entrada");
-				juego = true; // arranca el juego
+						// ENVIANDO AUTORIZACION
 
-			} else {
-				DataOutputStream denegarAcceso = new DataOutputStream(cliente.getOutputStream());
-				denegarAcceso.writeUTF("Error");
-				consola("Acesso denegado.. Servidor cerrado");
-				//servidorJuego.close();
-			}
+						String command = "auth";
+						List<String> args = new ArrayList<String>();
+						args.add(Integer.toString(posicionActual.getX()));
+						args.add(Integer.toString(posicionActual.getY()));
+						Paquete autorizacion = new Paquete(command, args);
 
-			}
-			
-			while (juego == true) {
-	
-				try {	
-					Coordenada aux;
-					// socket para guardar las llamadas
+						autorizacion = h.encriptarPaquete(autorizacion);
 
-					consola("Esperando peticion de casillero...");
-					// System.out.println("Esperando peticion de casillero...");
-					cliente = servidorJuego.accept(); // esperando una llamada
-					// System.out.println("Peticion recibida");
-					consola("Petición recibida");
+						ObjectOutputStream autorizacionStream = new ObjectOutputStream(cliente.getOutputStream());
+						autorizacionStream.writeObject(autorizacion); // auth x y
+					} else {
+						Paquete autorizacion = new Paquete("error");
 
-					DataInputStream solicitudMovimiento = new DataInputStream(cliente.getInputStream());
-					String message = solicitudMovimiento.readUTF();
-					
-					List<String> settings = readMessage(message);
-			
-			
-					consola("DIRECCION IP: " +  cliente.getInetAddress());
-					consola("PUERTO:" + cliente.getPort());
-
-					//aux = desencriptarCoordenada(aux);
-					// consola("Se recibio coordenada: " + aux.getX() + "; " + aux.getY());
-					// System.out.println("Se recibio coordenada: " + aux.getX() + " ;" +
-					// aux.getY());
-
-					if(settings.get(0).equals("square")) {
-						aux = new Coordenada(Integer.parseInt(settings.get(1)), Integer.parseInt(settings.get(2)));
-						
-						settings.clear();
-						
-						if (aux.getX() == -1 && aux.getY() == -1) {
-							consola("Cerrando Servidor de juego por coordenadas -1;-1");
-							juego = false;
-							servidorJuego.close();
-							setVisible(false);
-							System.out.println("Servidor de juego cerrado por coordenadas -1;-1");
-							break;
-						}
-						
-						String valor = devolverValor(aux, laberinto);
-						//consola("Se devuelve valor: " + valor);
-						// System.out.println("Se devuelve letra: " + valor);
-
-						DataOutputStream devolver = new DataOutputStream(cliente.getOutputStream());
-						
-						String command = "value";
-						settings.add(command);
-						settings.add(valor);
-						
-						String respuesta = buildMessage(settings);
-						
-						devolver.writeUTF(respuesta);
-
-						//int encript = encriptarValorLetra(valor);
-
-						// System.out.println("El valor de la letra es: " + encript);
-
-						//devolver.writeInt(encript);
-						// System.out.println("Se devuelve letra: " + valor);
-						
-						
+						autorizacion = h.encriptarPaquete(autorizacion);
+						ObjectOutputStream autorizacionStream = new ObjectOutputStream(cliente.getOutputStream());
+						autorizacionStream.writeObject(autorizacion);
+						consola("Acesso denegado.");
+						// servidorJuego.close();
 					}
-					
-					
-					
+					break;
+				case "square":
 
-					
-				
+					int x = Integer.parseInt(solicitud.getArgs().get(0));
+					int y = Integer.parseInt(solicitud.getArgs().get(1));
 
-			} catch (Exception e) {
-				// JOptionPane.showMessageDialog(null, e.getMessage());
-				System.out.println(e.getMessage());
-				// e.printStackTrace();
+					Coordenada c = new Coordenada(x, y);
+
+					String letra = devolverValor(c, laberinto);
+
+					String command = "Letra";
+					List<String> args = new ArrayList<String>();
+					args.add(letra);
+
+					Paquete envioLetra = new Paquete(command, args);
+
+					envioLetra = h.encriptarPaquete(envioLetra);
+					ObjectOutputStream envioLetraStream = new ObjectOutputStream(cliente.getOutputStream());
+					envioLetraStream.writeObject(envioLetra);
+
+					break;
+				}
 			}
-				
-			} // while juego == true
 
-		} catch (IOException e) {
-			// JOptionPane.showMessageDialog(null, e.getMessage());
+		} catch (Exception e) {
 			System.out.println(e.getMessage());
-			// e.printStackTrace();
 
 		}
 
 	}
-	
-	public String buildMessage(List<String> settings){
-		String message = "";
-		for(String m : settings) {
-			message = message.concat(m + " ");
+
+	public boolean limites(String direccion) throws NumberFormatException, UnknownHostException, IOException {
+		boolean resultado = true;
+		if (direccion.equals("derecha")) { // Derecha
+			if (posicionActual.getX() == 19) {
+				resultado = false;
+			}
+			if (devolverValor(new Coordenada(posicionActual.getX() + 1, posicionActual.getY()), laberinto)
+					.equalsIgnoreCase("P")) {
+				resultado = false;
+			}
 		}
-		return message;
+		if (direccion.equals("arriba")) { // Arriba
+			if (posicionActual.getY() == 0) {
+				resultado = false;
+			}
+			if (devolverValor(new Coordenada(posicionActual.getX(), posicionActual.getY() - 1), laberinto)
+					.equalsIgnoreCase("P")) {
+				resultado = false;
+			}
+		}
+		if (direccion.equals("abajo")) { // Abajo
+			if (posicionActual.getY() == 19) {
+				resultado = false;
+			}
+			if (devolverValor(new Coordenada(posicionActual.getX(), posicionActual.getY() + 1), laberinto)
+					.equalsIgnoreCase("P")) {
+				resultado = false;
+			}
+		}
+		if (direccion.equals("izquierda")) { // Izquierda
+			if (posicionActual.getX() == 0) {
+				resultado = false;
+			}
+			if (devolverValor(new Coordenada(posicionActual.getX() - 1, posicionActual.getY()), laberinto)
+					.equalsIgnoreCase("P")) {
+				resultado = false;
+			}
+		}
+		return resultado;
 	}
 
-	public List<String> readMessage(String message){
-		List<String> settings = new ArrayList<String>();
-		
-		String[] data = message.split(" ");
-		for(String d: data) {
-			settings.add(d);
-		}
-		
-		return settings;
-	}
-		
 	public void consola(String mensaje) {
 		Calendar calendario = new GregorianCalendar();
 		txtMensajes.append(calendario.get(Calendar.HOUR) + ":" + calendario.get(Calendar.MINUTE) + ":"
@@ -245,9 +202,7 @@ public class Servidor extends JFrame implements Runnable {
 	public String devolverValor(Coordenada c, JTextArea[][] array) {
 		// boolean encontrado = false;
 		String valor = "";
-
 		valor = array[c.getX()][c.getY()].getText();
-
 		return valor;
 	}
 
@@ -309,26 +264,46 @@ public class Servidor extends JFrame implements Runnable {
 
 	public JTextArea[][] dibujarLaberinto(int size) {
 
-		String fila1[] = { "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "S", "P" };
-		String fila2[] = { "E", "C", "C", "C", "C", "P", "P", "P", "O", "P", "C", "G", "C", "C", "P", "O", "C", "C", "C", "P" };
-		String fila3[] = { "P", "P", "P", "P", "C", "P", "P", "P", "C", "P", "C", "P", "P", "C", "P", "P", "P", "C", "O", "P" };
-		String fila4[] = { "P", "P", "P", "P", "C", "P", "P", "P", "C", "P", "C", "P", "P", "G", "C", "O", "C", "G", "C", "P" };
-		String fila5[] = { "P", "O", "C", "C", "C", "C", "C", "C", "C", "P", "C", "P", "P", "C", "P", "P", "P", "C", "P", "P" };
-		String fila6[] = { "P", "P", "P", "P", "P", "P", "C", "P", "G", "P", "C", "P", "P", "C", "P", "P", "P", "C", "P", "P" };
-		String fila7[] = { "P", "C", "C", "C", "P", "P", "G", "P", "C", "P", "O", "C", "C", "G", "C", "O", "C", "G", "C", "P" };
-		String fila8[] = { "P", "C", "P", "C", "P", "P", "C", "P", "C", "P", "C", "P", "P", "P", "P", "P", "P", "P", "C", "P" };
-		String fila9[] = { "P", "O", "P", "C", "C", "C", "C", "P", "O", "P", "C", "P", "P", "P", "P", "P", "P", "P", "C", "P" };
-		String fila10[] = { "P", "C", "P", "P", "P", "P", "P", "P", "P", "P", "C", "P", "C", "C", "C", "O", "C", "C", "C", "P" };
-		String fila11[] = { "P", "C", "P", "P", "P", "P", "P", "P", "P", "P", "C", "P", "C", "P", "P", "p", "P", "P", "C", "P" };
-		String fila12[] = { "P", "C", "C", "C", "C", "O", "C", "C", "C", "C", "G", "P", "O", "C", "C", "G", "C", "O", "O", "P" };
-		String fila13[] = { "P", "P", "P", "P", "P", "P", "P", "P", "C", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P" };
-		String fila14[] = { "P", "O", "O", "P", "P", "P", "P", "P", "C", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P" };
-		String fila15[] = { "P", "O", "O", "C", "C", "G", "C", "C", "C", "C", "C", "C", "O", "C", "C", "C", "C", "C", "P", "P" };
-		String fila16[] = { "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "C", "P", "P" };
-		String fila17[] = { "P", "O", "K", "O", "G", "C", "C", "C", "C", "C", "C", "C", "C", "O", "G", "P", "P", "C", "C", "P" };
-		String fila18[] = { "P", "P", "P", "P", "P", "P", "P", "P", "G", "P", "P", "P", "P", "P", "P", "P", "P", "P", "C", "P" };
-		String fila19[] = { "P", "O", "O", "G", "C", "C", "C", "C", "C", "C", "C", "C", "C", "O", "C", "C", "C", "C", "O", "P" };
-		String fila20[] = { "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P" };
+		String fila1[] = { "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P",
+				"S", "P" };
+		String fila2[] = { "E", "C", "C", "C", "C", "P", "P", "P", "O", "P", "C", "G", "C", "C", "P", "O", "C", "C",
+				"C", "P" };
+		String fila3[] = { "P", "P", "P", "P", "C", "P", "P", "P", "C", "P", "C", "P", "P", "C", "P", "P", "P", "C",
+				"O", "P" };
+		String fila4[] = { "P", "P", "P", "P", "C", "P", "P", "P", "C", "P", "C", "P", "P", "G", "C", "O", "C", "G",
+				"C", "P" };
+		String fila5[] = { "P", "O", "C", "C", "C", "C", "C", "C", "C", "P", "C", "P", "P", "C", "P", "P", "P", "C",
+				"P", "P" };
+		String fila6[] = { "P", "P", "P", "P", "P", "P", "C", "P", "G", "P", "C", "P", "P", "C", "P", "P", "P", "C",
+				"P", "P" };
+		String fila7[] = { "P", "C", "C", "C", "P", "P", "G", "P", "C", "P", "O", "C", "C", "G", "C", "O", "C", "G",
+				"C", "P" };
+		String fila8[] = { "P", "C", "P", "C", "P", "P", "C", "P", "C", "P", "C", "P", "P", "P", "P", "P", "P", "P",
+				"C", "P" };
+		String fila9[] = { "P", "O", "P", "C", "C", "C", "C", "P", "O", "P", "C", "P", "P", "P", "P", "P", "P", "P",
+				"C", "P" };
+		String fila10[] = { "P", "C", "P", "P", "P", "P", "P", "P", "P", "P", "C", "P", "C", "C", "C", "O", "C", "C",
+				"C", "P" };
+		String fila11[] = { "P", "C", "P", "P", "P", "P", "P", "P", "P", "P", "C", "P", "C", "P", "P", "p", "P", "P",
+				"C", "P" };
+		String fila12[] = { "P", "C", "C", "C", "C", "O", "C", "C", "C", "C", "G", "P", "O", "C", "C", "G", "C", "O",
+				"O", "P" };
+		String fila13[] = { "P", "P", "P", "P", "P", "P", "P", "P", "C", "P", "P", "P", "P", "P", "P", "P", "P", "P",
+				"P", "P" };
+		String fila14[] = { "P", "O", "O", "P", "P", "P", "P", "P", "C", "P", "P", "P", "P", "P", "P", "P", "P", "P",
+				"P", "P" };
+		String fila15[] = { "P", "O", "O", "C", "C", "G", "C", "C", "C", "C", "C", "C", "O", "C", "C", "C", "C", "C",
+				"P", "P" };
+		String fila16[] = { "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "C",
+				"P", "P" };
+		String fila17[] = { "P", "O", "K", "O", "G", "C", "C", "C", "C", "C", "C", "C", "C", "O", "G", "P", "P", "C",
+				"C", "P" };
+		String fila18[] = { "P", "P", "P", "P", "P", "P", "P", "P", "G", "P", "P", "P", "P", "P", "P", "P", "P", "P",
+				"C", "P" };
+		String fila19[] = { "P", "O", "O", "G", "C", "C", "C", "C", "C", "C", "C", "C", "C", "O", "C", "C", "C", "C",
+				"O", "P" };
+		String fila20[] = { "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P", "P",
+				"P", "P" };
 
 		String[][] filas = { fila1, fila2, fila3, fila4, fila5, fila6, fila7, fila8, fila9, fila10, fila11, fila12,
 				fila13, fila14, fila15, fila16, fila17, fila18, fila19, fila20 };
@@ -381,79 +356,6 @@ public class Servidor extends JFrame implements Runnable {
 		}
 
 		return array;
-	}
-
-}
-
-class Coordenada implements Serializable {
-	private int x;
-	private int y;
-	private boolean known;
-	private String letra;
-
-	public Coordenada(int x, int y) {
-		this.x = x;
-		this.y = y;
-		this.known = false;
-		this.letra = "";
-
-	}
-
-	public Coordenada(int x, int y, boolean known) {
-		this.x = x;
-		this.y = y;
-		this.known = known;
-		this.letra = "";
-	}
-
-	public Coordenada() {
-	}
-
-	public int getX() {
-		return x;
-	}
-
-	public int getY() {
-		return y;
-	}
-
-	public void setX(int x) {
-		this.x = x;
-	}
-
-	public void setY(int y) {
-		this.y = y;
-	}
-
-	public boolean isKnown() {
-		return known;
-	}
-
-	public void setKnown(boolean known) {
-		this.known = known;
-	}
-
-	public String getLetra() {
-		return letra;
-	}
-
-	public void setLetra(String letra) {
-		this.letra = letra;
-	}
-
-	@Override
-	public String toString() {
-		return x + " ;" + y + ", known=" + known;
-	}
-
-	public boolean equals(Coordenada c) {
-		boolean respuesta = false;
-		if (this.getX() == c.getX() && this.getY() == c.getY()) {
-			respuesta = true;
-		} else {
-			respuesta = false;
-		}
-		return respuesta;
 	}
 
 }

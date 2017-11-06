@@ -3,8 +3,6 @@ package modelo;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -13,9 +11,12 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.List;
 
-import javax.swing.JButton;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -23,142 +24,19 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
-public class Cliente {
+public class ClienteConsola {
 
-	public static void main(String[] args) {
-		VentanaLogin ventanaLogin = new VentanaLogin();
-		ventanaLogin.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+	public static void main(String[] args) throws ClassNotFoundException, IOException {
+		VentanaClienteConsola ventanaClienteConsola = new VentanaClienteConsola();
+		ventanaClienteConsola.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 }
 
-class VentanaLogin extends JFrame implements ActionListener {
-
-	Helper h = new Helper();
-
-	JButton btnLogin;
-	JTextField ip;
-	JTextField puerto;
-	JTextField user;
-	JTextField password;
-	JTextArea respuesta;
-
-	public VentanaLogin() {
-		JLabel titulo = new JLabel("Login");
-		titulo.setBounds(10, 10, 50, 20);
-		add(titulo);
-
-		JLabel ipLabel = new JLabel("Puerto: ");
-		ipLabel.setBounds(10, 50, 50, 20);
-		add(ipLabel);
-
-		ip = new JTextField("localhost");
-		ip.setBounds(70, 50, 100, 20);
-		add(ip);
-
-		JLabel puertoLabel = new JLabel("Puerto: ");
-		puertoLabel.setBounds(10, 80, 50, 20);
-		add(puertoLabel);
-
-		puerto = new JTextField("9020");
-		puerto.setBounds(70, 80, 100, 20);
-		add(puerto);
-
-		JLabel userLabel = new JLabel("Usuario: ");
-		userLabel.setBounds(10, 110, 50, 20);
-		add(userLabel);
-
-		user = new JTextField("admin");
-		user.setBounds(70, 110, 100, 20);
-		add(user);
-
-		JLabel passLabel = new JLabel("Clave: ");
-		passLabel.setBounds(10, 140, 50, 20);
-		add(passLabel);
-
-		password = new JTextField("admin");
-		password.setBounds(70, 140, 100, 20);
-		add(password);
-
-		btnLogin = new JButton();
-		btnLogin.setText("Ingresar");
-		btnLogin.setBounds(10, 180, 150, 20); // (x, y, ancho, alto)
-		btnLogin.addActionListener(this); // para poder programar en el boton
-		add(btnLogin);
-
-		JLabel respuestaLabel = new JLabel("Respuesta del servidor: ");
-		respuestaLabel.setBounds(10, 290, 150, 20);
-		add(respuestaLabel);
-
-		respuesta = new JTextArea(" Esperando...");
-		respuesta.setBounds(10, 320, 150, 20);
-		add(respuesta);
-
-		setLayout(null); // para que los controles no esten uno encima del otro
-		setTitle("Cliente Login");
-		setSize(400, 400); // tamaño del layout
-		setResizable(false);
-		setLocationRelativeTo(null);
-		setVisible(true);
-
-	}
-
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		if (e.getSource() == btnLogin) {
-			try {
-				Coordenada entradaXY = new Coordenada();
-
-				String command = "log";
-				List<String> settings = new ArrayList<String>();
-				settings.add(user.getText());
-				settings.add(password.getText());
-
-				// PETICION DE AUTORIZACION
-
-				Paquete credenciales = new Paquete(command, settings);
-				Socket cliente = new Socket(ip.getText(), Integer.parseInt(puerto.getText()));
-				ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
-
-				credenciales = h.encriptarPaquete(credenciales);
-
-				System.out.println(credenciales.getCommand());
-				System.out.println(credenciales.getArgs());
-
-				out.writeObject(credenciales);
-
-				// RECIBIR AUTENTICACION
-
-				Paquete autorizacion = new Paquete();
-				ObjectInputStream autorizacionStream = new ObjectInputStream(cliente.getInputStream());
-				autorizacion = (Paquete) autorizacionStream.readObject();
-
-				autorizacion = h.desencriptarPaquete(autorizacion);
-
-				if (autorizacion.getCommand().equalsIgnoreCase("Auth")) {
-					entradaXY.setX(Integer.parseInt(autorizacion.getArgs().get(0)));
-					entradaXY.setY(Integer.parseInt(autorizacion.getArgs().get(1)));
-					entradaXY.setKnown(true);
-					entradaXY.setLetra("E");
-
-					setVisible(false);
-					VentanaCliente ventanaCliente = new VentanaCliente(entradaXY, puerto.getText());
-					ventanaCliente.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-				} else {
-					System.out.println("Error al recibir coordenadas de entrada. Verificar autenticacion");
-				}
-
-			} catch (Exception ex) {
-				ex.printStackTrace();
-				System.out.println("Error en cliente " + ex.getMessage());
-			}
-		}
-	}
-}
-
-class VentanaCliente extends JFrame {
+class VentanaClienteConsola extends JFrame {
 
 	static Helper h = new Helper();
 	static int puerto = 0;
+	static String ip;
 	int oro = 0;
 	boolean llave = false;
 	public static int key = 346;
@@ -167,68 +45,166 @@ class VentanaCliente extends JFrame {
 	int posy = 50;
 	int xEntrada = 0;
 	int yEntrada = 0;
+	public static Coordenada entrada;
 	public static Coordenada posicionActual;
 	public static KeyListener listener;
 	static JTextArea[][] laberinto = new JTextArea[20][20];
 	static Coordenada[][] mapa = new Coordenada[20][20];
 	ArrayList<Coordenada> oroYaTomado = new ArrayList<Coordenada>();
 	JTextArea casillero;
-	// static JTextArea txtMensajes;
+	static JTextArea txtMensajes;
 
+	JTextField bashInput = new JTextField();
+	JTextField bashOutput = new JTextField();
 	JLabel oroLabel;
 
-	public VentanaCliente(Coordenada entrada, String port) throws ClassNotFoundException, IOException {
+	public VentanaClienteConsola() throws ClassNotFoundException, IOException {
 
-		puerto = Integer.parseInt(port);
+		entrada = new Coordenada();
 		posicionActual = entrada;
 		xEntrada = entrada.getX();
 		yEntrada = entrada.getY();
-		listener = new MyKeyListener();
-		addKeyListener(listener);
+
 		setFocusable(true);
-		// config = new
-		// Configuracion(InetAddress.getLocalHost().getHostAddress(),puerto);
-		JLabel entradaLabel = new JLabel("Coordenadas de entrada: " + entrada.getX() + "; " + entrada.getY());
+
+		JLabel entradaLabel = new JLabel();
 		entradaLabel.setBounds(10, 10, 200, 20);
 		add(entradaLabel);
 
 		oroLabel = new JLabel("Oro: " + oro);
 		oroLabel.setBounds(300, 10, 200, 20);
 		oroLabel.setFont(new Font("Arial", Font.PLAIN, 25));
-		add(oroLabel);
 
-		/*
-		 * txtMensajes = new JTextArea(); txtMensajes.setBounds(450, 20, 300, 1000);
-		 * add(txtMensajes); txtMensajes.setEditable(false);
-		 * consola("Inicio de juego.");
-		 * 
-		 */
+		bashInput.addActionListener(action);
+		bashInput.setText("log admin admin localhost 9020");
+		bashInput.setFont(new Font("Arial", Font.BOLD, 15));
+		bashInput.setBounds(10, 700, 700, 40);
+		add(bashInput);
 
-		dibujarLaberinto(20, false);
-		initMapa();
+		bashOutput.addActionListener(action);
+		bashOutput.setFont(new Font("Arial", Font.BOLD, 15));
+		bashOutput.setBounds(10, 650, 700, 40);
+		bashOutput.setEditable(false);
+		add(bashOutput);
+
+		// "Coordenadas de entrada: " + entrada.getX() + "; " + entrada.getY()
+
 		setLayout(null);
 		setTitle("Laberinto");
 		setSize(800, 800);
 		setLocationRelativeTo(null);
 		setVisible(true);
 
-		mostrarVecinos();
-
 	}
 
-	public void procesar(String msg)
-			throws ClassNotFoundException, NumberFormatException, UnknownHostException, IOException {
+	Action action=new AbstractAction(){String msg="";
+
+	@Override public void actionPerformed(ActionEvent e){Calendar calendario=new GregorianCalendar();String time=(calendario.get(Calendar.HOUR)+":"+calendario.get(Calendar.MINUTE)+":"+calendario.get(Calendar.SECOND));
+
+	msg=e.getActionCommand();
+
+	try{bashInput.setText(null);procesar(msg);}catch(ClassNotFoundException|NumberFormatException|IOException e1){bashOutput.setText(time+" | "+msg+" || "+e1.getMessage());e1.printStackTrace();}};};
+
+	public void procesar(String msg) throws IOException, ClassNotFoundException {
+
+		Calendar calendario = new GregorianCalendar();
+		String time = (calendario.get(Calendar.HOUR) + ":" + calendario.get(Calendar.MINUTE) + ":"
+				+ calendario.get(Calendar.SECOND));
 
 		String args[] = msg.split(" ");
 		String comando = args[0];
 
 		switch (comando) {
-		case "mov":
-			if (limites(args[1])) {
-				modificarPos(args[1]);
-				mostrarVecinos();
-			}
+		case "log":
+			String user = args[1];
+			String pass = args[2];
+			ip = args[3];
+			puerto = Integer.parseInt(args[4]);
 
+			// PETICION DE AUTORIZACION
+
+			List<String> settings = new ArrayList<String>();
+			settings.add(user);
+			settings.add(pass);
+
+			Paquete credenciales = new Paquete(comando, settings);
+			
+			credenciales = h.encriptarPaquete(credenciales);
+			
+			Socket cliente = new Socket(ip, puerto);
+			ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
+			out.writeObject(credenciales);
+
+			// RECIBIR AUTENTICACION
+
+			Paquete autorizacion = new Paquete();
+			ObjectInputStream autorizacionStream = new ObjectInputStream(cliente.getInputStream());
+			autorizacion = (Paquete) autorizacionStream.readObject();
+			
+			autorizacion = h.desencriptarPaquete(autorizacion);
+
+			if (autorizacion.getCommand().equalsIgnoreCase("Auth")) {
+				entrada.setX(Integer.parseInt(autorizacion.getArgs().get(0)));
+				entrada.setY(Integer.parseInt(autorizacion.getArgs().get(1)));
+				entrada.setKnown(true);
+				entrada.setLetra("E");
+
+				add(oroLabel);
+				dibujarLaberinto(20, false);
+				initMapa();
+				mostrarVecinos();
+
+				bashOutput.setText(time + " | " + msg + " || Auth: OK - Bienvenido Admin");
+
+			} else {
+				System.out.println("Error al recibir coordenadas de entrada. Verificar autenticacion");
+				bashOutput.setText(time + " | " + msg + " || Auth: NO - Verificar Credenciales");
+			}
+			break;
+		case "mov":
+			String direccion = args[1];
+			
+
+			if(direccion.equalsIgnoreCase("izquierda") ||
+					direccion.equalsIgnoreCase("arriba") ||
+					direccion.equalsIgnoreCase("derecha") ||
+					direccion.equalsIgnoreCase("abajo")){
+				
+				if (limites(direccion)) {
+
+					boolean camino = true;
+					modificarPos(args[1]);
+					mostrarVecinos();
+					if (checkOro()) {
+						oroLabel.setText("Oro: " + Integer.toString(oro));
+						bashOutput.setText(time + " | " + msg + " || Mov: Ok - Oro!");
+						camino = false;
+					}
+					if (checkGuardia()) {
+						bashOutput.setText(time + " | " + msg + " || Mov: Ok - Guardia!");
+						camino = false;
+					}
+					if (checkSalida()) {
+						bashOutput.setText(time + " | " + msg + " || Mov: Ok - Salida!");
+						camino = false;
+					}
+					if (llave == false) {
+						if (checkLlave()) {
+							bashOutput.setText(time + " | " + msg + " || Mov: Ok - Llave!");
+							camino = false;
+						}
+					}
+					if (camino) {
+						bashOutput.setText(time + " | " + msg + " || Mov: Ok - Camino");
+					}
+				} else {
+					bashOutput.setText(time + " | " + msg + " || Mov: NO - Pared!");
+				}
+			}else {
+				bashOutput.setText(
+						time + " | " + msg + " || Mov: NO - Direccion invalida. (izquierda/arriba/derecha/abajo)");	
+			}
+			break;
 		}
 	}
 
@@ -260,13 +236,12 @@ class VentanaCliente extends JFrame {
 		mapa[xEntrada][yEntrada].setKnown(true);
 	}
 
-	/*
-	 * public static void consola(String mensaje) { Calendar calendario = new
-	 * GregorianCalendar(); txtMensajes.append(calendario.get(Calendar.HOUR) + ":" +
-	 * calendario.get(Calendar.MINUTE) + ":" + calendario.get(Calendar.SECOND));
-	 * txtMensajes.append(": " + mensaje + "\n"); }
-	 * 
-	 */
+	public static void consola(String mensaje) {
+		Calendar calendario = new GregorianCalendar();
+		txtMensajes.append(calendario.get(Calendar.HOUR) + ":" + calendario.get(Calendar.MINUTE) + ":"
+				+ calendario.get(Calendar.SECOND));
+		txtMensajes.append(": " + mensaje + "\n");
+	}
 
 	public JTextArea format(JTextArea j, Coordenada c) {
 		j.setText(c.getLetra());
@@ -380,7 +355,6 @@ class VentanaCliente extends JFrame {
 
 	public static String devolverLetra(Coordenada c)
 			throws NumberFormatException, UnknownHostException, IOException, ClassNotFoundException {
-		int letraEncript = 0;
 		String letra = "";
 		Socket cliente = new Socket(InetAddress.getLocalHost().getHostAddress(), puerto);
 
@@ -390,23 +364,20 @@ class VentanaCliente extends JFrame {
 		settings.add(Integer.toString(c.getY()));
 
 		Paquete pedidoLetra = new Paquete(command, settings);
-
+		
 		pedidoLetra = h.encriptarPaquete(pedidoLetra);
 
 		ObjectOutputStream pedidoLetraStream = new ObjectOutputStream(cliente.getOutputStream());
-		// c = encriptarCoordenada(c);
 		pedidoLetraStream.writeObject(pedidoLetra); // square x y
 
 		ObjectInputStream valorLetraStream = new ObjectInputStream(cliente.getInputStream());
 		Paquete valorLetra = new Paquete();
 		valorLetra = (Paquete) valorLetraStream.readObject();
-
+		
 		valorLetra = h.desencriptarPaquete(valorLetra);
 
 		letra = valorLetra.getArgs().get(0);
 
-		// letraEncript = recibir.readInt();
-		// letra = desencriptarLetra(letraEncript);
 		cliente.close();
 		return letra;
 	}
@@ -479,11 +450,11 @@ class VentanaCliente extends JFrame {
 		boolean respuesta = false;
 		try {
 			if (devolverLetra(new Coordenada(posicionActual.getX(), posicionActual.getY())).equalsIgnoreCase("G")) {
+				respuesta = true;
 				if (oro == 0) {
 					JOptionPane.showMessageDialog(null, "No tiene oro para pagar al guardia. Perdirse!");
 					posicionActual.setX(xEntrada);
 					posicionActual.setY(yEntrada);
-					respuesta = true;
 					salir();
 				} else {
 					oro--;
@@ -537,56 +508,6 @@ class VentanaCliente extends JFrame {
 
 	public void salir() throws NumberFormatException, UnknownHostException, IOException {
 
-	}
-
-	class MyKeyListener implements KeyListener {
-		@Override
-		public void keyTyped(KeyEvent e) {
-		}
-
-		@Override
-		public void keyPressed(KeyEvent e) {
-			// System.out.println("keyPressed=" + e.getKeyCode());
-			oroLabel.setText("Oro: " + Integer.toString(oro));
-			String direccion = "";
-			switch (e.getKeyCode()) {
-			case 37: // Izquierda
-				direccion = "izquierda";
-				break;
-			case 38: // Arriba
-				direccion = "arriba";
-				break;
-			case 39: // Derecho
-				direccion = "derecha";
-				break;
-			case 40: // Abajo
-				direccion = "abajo";
-				break;
-			}
-			try {
-				if (limites(direccion)) {
-					modificarPos(direccion);
-					mostrarVecinos();
-					checkOro();
-					checkGuardia();
-					checkSalida();
-					if (llave == false)
-						checkLlave();
-
-				}
-
-			} catch (ClassNotFoundException | NumberFormatException | IOException e1) {
-				e1.printStackTrace();
-			}
-		}
-
-		@Override
-		public void keyReleased(KeyEvent e) {
-			// TODO Auto-generated method stub
-		}
-	}
-
-	public void keyReleased(KeyEvent e) {
 	}
 
 }

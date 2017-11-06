@@ -1,30 +1,57 @@
 package modelo;
 
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class Pruebas {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws UnknownHostException {
 	
-		List<String> paquete = new ArrayList<String>();
+		Helper h = new Helper();
+		
+		List<String> settings = new ArrayList<String>();
 		
 		String command = "log";
+	
+		settings.add("admin");
+		settings.add("cisco");
+		settings.add("eugenia");
+		settings.add("Andres");
+		settings.add("fede");
+		settings.add("fabian");
 		
-		paquete.add(command);
-		paquete.add("admin");
-		paquete.add("cisco");
+		
+		Paquete p = new Paquete(command, settings);
+		
+		System.out.println("Paquete crudo: " + p.getCommand() + p.getArgs());
+		
+		p = h.encriptarPaquete(p);
+		
+		System.out.println("Paquete Encriptado: " + p.getCommand() + p.getArgs());
+		
+		p = h.desencriptarPaquete(p);
+		
+		System.out.println("Paquete Desencriptado: " + p.getCommand() + p.getArgs());
+		
+		
+		
+		
+		
+		
+		
+		
+		/*
 		
 		System.out.println("CONSTRUIR MENSAJE: ");
-		
 		String message = buildMessage(command, paquete);
-		
 		System.out.println(message);
-		
 		System.out.println("LECTURA DE PAQUETE: ");
-		
 		System.out.println(readMessage(message));
+		
+		
+		*/
 			
 
 	}
